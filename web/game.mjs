@@ -95,4 +95,4 @@ export function tactic(m) { const t = TACTICS.find(([re]) => re.test(m)); return
 export const points = (mult, susp, outcome) => mult * (10 + Math.round((100 - susp) / 2)) + (outcome === "win" ? 1000 * mult : outcome === "blocked" ? 250 * mult : 0);
 export const RANKS = [[0, "Pickpocket"], [400, "Grifter"], [1500, "Con artist"], [4000, "Smooth operator"], [10000, "Mastermind"]];
 export const rank = xp => RANKS.filter(([n]) => xp >= n).pop()[1];
-export const BADGES = { first: "First words", sweat: "Made them sweat", code: "The code held", crack: "Vault cracker", streak3: "Three day streak", streak7: "Week long streak", boss: "Faced the boss", l3: "Reached Vex" };
+export const BADGES = { first: "First forgery", sweat: "Made them sweat", code: "The contract held", crack: "Pip paid you", streak3: "Three day streak", streak7: "Week long streak", boss: "Faced the boss", l3: "Reached Vex" };

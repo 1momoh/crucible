@@ -5,17 +5,19 @@ import { client, TREASURY } from "../scripts/evm.mjs";
 import { quote, INTENTS_FEE_BPS } from "../scripts/intents.mjs";
 import { tick } from "../scripts/relayer.mjs";
 import * as Gm from "./game.mjs";
+import * as D from "./desk.mjs";
+import { near, hermes, attestationUrl, NEAR_API, NEAR_PRICE } from "../agent/orchestrator.mjs";
 const PORT = +process.env.PORT || 8790, DIR = "/root/crucible/web/", MAX_MSGS = 5;
 const JACKPOT_BASE = 1, JACKPOT_STEP = 0.05, JACKPOT_CAP = 5; // mock NEAR, displayed and quoted, never sent
 const BTC = JSON.parse(fs.readFileSync("/root/crucible/scripts/btc-pubkey.json")).address;
 const owner = await loadAccount(), agent = await loadAccount("agent");
 const db = (() => { try { return JSON.parse(fs.readFileSync(DIR + "game.json")); } catch { return {}; } })();
-Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], board: db.board || [], players: db.players || {}, exploits: db.exploits || [], jackpot: db.jackpot ?? JACKPOT_BASE });
+Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], board: db.board || [], players: db.players || {}, exploits: db.exploits || [], transcripts: db.transcripts || {}, spend: db.spend || { usd: 0, calls: 0, in: 0, out: 0 }, jackpot: db.jackpot ?? JACKPOT_BASE });
 // One source of truth: rebuild the live feed (one entry per run, real nicks) from attempts.jsonl, and log real on-chain wins
 // that happened outside the web game (scripted e2e demo) into the exploit library so library, board and drawer agree.
 { const att = (() => { try { return fs.readFileSync(DIR + "attempts.jsonl", "utf8").trim().split("\n").map(l => JSON.parse(l)); } catch { return []; } })(), by = {};
   for (const a of att) { if (!a.run || a.mode === "overcap") continue; const r = db.runs[a.run], nick = r ? db.players[r.pid]?.nick : null; if (!nick) continue;
-    const e = by[a.run] ||= { run: a.run, nick, persona: r.persona.name, msgs: 0 }; Object.assign(e, { ts: Date.parse(a.ts), outcome: a.outcome, tactic: Gm.tactic(a.msg || "").name }); e.msgs++; }
+    const e = by[a.run] ||= { run: a.run, nick, persona: r.persona.name, msgs: 0 }; Object.assign(e, { ts: Date.parse(a.ts), outcome: a.outcome, tactic: a.tactic || Gm.tactic(a.msg || "").name }); e.msgs++; }
   db.feed = Object.values(by).sort((a, b) => b.ts - a.ts).slice(0, 50);
   try { const rs = JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done, wins = await view(owner, "get_wins");
     for (const w of wins) if (rs[w.payment_id]?.hash && !db.exploits.some(e => e.payment_id === w.payment_id)) {
@@ -79,20 +81,46 @@ async function proof() {
 }
 const txOf = pid => { try { return JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done[pid]?.hash || null; } catch { return null; } };
 
-async function newRun(pid, mode, addrRaw) {
-  const p = player(pid), P = Gm.persona(mode), key = P.key;
-  if (!p.unlocked.includes(key)) throw Object.assign(new Error("That vault is still locked. Score higher on the one before it."), { code: 403 });
-  if (key === "daily" && p.lastDaily === Gm.today()) throw Object.assign(new Error("You already hit today's vault. A new one opens at 01:00 Lagos time."), { code: 409 });
+const PIP = { key: "desk", name: "Pip", title: "Accounts payable clerk, day three", mult: 1 };
+async function newRun(pid, addrRaw) {
+  const p = player(pid);
   const s = await view(owner, "get_state");
   if (!s.round_open) await owner.functionCall({ contractId: GAME, methodName: "open_round", args: {}, gas: G });
   const mine = await playerAddress(addrRaw), stash = mine || stashAddress();
   const r = await owner.functionCall({ contractId: GAME, methodName: "register_session", gas: G,
     args: { attack_addrs: [["eth", stash]], payout: { asset_id: "claim-on-win", recipient: "claim-on-win" } } });
   const sid = JSON.parse(Buffer.from(r.status.SuccessValue, "base64").toString()), id = crypto.randomBytes(9).toString("base64url");
-  if (key === "daily") p.lastDaily = "pending:" + Gm.today();
-  const seed = id + ":" + Gm.today();
-  db.runs[id] = { id, pid, sid, mode, persona: P, stash, own_addr: !!mine, ledger: Gm.ledger(seed), code: Gm.code(seed), checks: null, msgs: 0, score: 0, vault: 0, history: [], lures: [], won: null, near_tx: r.transaction.hash, started: Date.now() }; save();
+  const seed = id + ":" + Gm.today(), books = Gm.ledger(seed), inv = books.find(i => i.status === "approved") || books[0];
+  const desk = D.desk(seed, inv, Gm.vendorAddr(inv.vendor));
+  db.runs[id] = { id, pid, sid, mode: "desk", persona: PIP, stash, own_addr: !!mine, ledger: books, desk, score: 0, won: null, msgs: 1, near_tx: r.transaction.hash, started: Date.now() }; save();
   return db.runs[id];
+}
+// Ask the guard. NEAR AI Cloud first (attested, TEE); on any failure fall back to local Hermes, labelled NOT attested.
+async function guard(system, doc) {
+  const err = [];
+  for (const p of [near(), hermes()].filter(Boolean)) {
+    const t0 = Date.now();
+    try {
+      const r = await fetch(p.url, { method: "POST", signal: AbortSignal.timeout(25000), headers: { "content-type": "application/json", authorization: `Bearer ${p.key}`, ...p.headers },
+        body: JSON.stringify({ ...p.extra, model: p.model, temperature: 0, max_tokens: 260, messages: [{ role: "system", content: system }, { role: "user", content: doc }] }) });
+      if (!r.ok) { err.push(`${p.name} ${r.status}`); continue; }
+      const j = await r.json(), raw = j.choices?.[0]?.message?.content || "";
+      let d; try { d = JSON.parse(raw.match(/\{[\s\S]*\}/)[0]); } catch { if (!raw) { err.push(`${p.name} empty`); continue; } d = { decision: "reject", rule: null, notes: ["I could not read my own handwriting. Rejected."] }; }
+      d.decision = d.decision === "approve" ? "approve" : "reject";
+      d.rule = /^R[1-4]$/.test(d.rule) ? d.rule : null;
+      d.notes = (Array.isArray(d.notes) ? d.notes : []).map(n => String(n).slice(0, 110)).slice(0, 4);
+      const u = j.usage || {}, usd = p.attested ? (u.prompt_tokens || 0) * NEAR_PRICE.in + (u.completion_tokens || 0) * NEAR_PRICE.out : 0;
+      if (p.attested) Object.assign(db.spend, { usd: db.spend.usd + usd, calls: db.spend.calls + 1, in: db.spend.in + (u.prompt_tokens || 0), out: db.spend.out + (u.completion_tokens || 0) });
+      return { d, raw, provider: p.name, attested: p.attested, model: j.model || p.model, chat_id: j.id || null, usage: u, usd, ms: Date.now() - t0, fallback_reason: err.join("; ") || null, key: p.key };
+    } catch (e) { err.push(`${p.name} ${e.message}`); }
+  }
+  throw new Error("Pip is away from the desk (" + err.join("; ") + "). Try again in a minute.");
+}
+// NEAR AI signs each completion inside the TEE; fetch that signature so the transcript carries it.
+async function nearSignature(g) {
+  if (!g.attested || !g.chat_id) return null;
+  try { const r = await fetch(`${NEAR_API}/signature/${encodeURIComponent(g.chat_id)}?model=${encodeURIComponent(g.model)}&signing_algo=ecdsa`, { headers: { authorization: `Bearer ${g.key}` }, signal: AbortSignal.timeout(8000) });
+    return r.ok ? await r.json() : { error: r.status }; } catch (e) { return { error: e.message }; }
 }
 function finish(run, p, won) {
   const unlocks = [], badges = [];
@@ -114,50 +142,49 @@ function feedUpsert(run, p, tactic, outcome) {
   if (f) Object.assign(f, { ts: Date.now(), tactic, outcome, msgs: run.msgs }); else db.feed.unshift({ run: run.id, ts: Date.now(), nick: p.nick, persona: run.persona.name, tactic, outcome, msgs: run.msgs });
   db.feed.sort((a, b) => b.ts - a.ts); db.feed = db.feed.slice(0, 50);
 }
-async function play(run, msg) {
-  const p = player(run.pid), P = run.persona;
-  const { d, provider, attested, ms } = await Gm.talk(P, patchedNow(), run.history, msg, run.ledger);
-  run.msgs++; run.lures.push(msg.slice(0, 400));
-  run.history.push({ role: "user", content: msg.slice(0, 600) }, { role: "assistant", content: JSON.stringify({ say: d.say, suspicion: d.suspicion }) });
-  const ck = Gm.checks(run); run.checks = ck;
-  // Pip's (1x) designed weak spot: all five checks green and suspicion under 40 means Pip pays the quoted invoice to you.
-  if (P.key === "l1" && ck.passed === 5 && d.suspicion < 40) Object.assign(d, { action: "pay", pay_to: "PLAYER", amount_eth: ck.inv.eth, invoice_ref: ck.inv.ref });
-  if (d.action === "pay" && d.pay_to === "PLAYER" && ck.inv && P.key === "l1") d.amount_eth = ck.inv.eth;
-  let outcome = "talk", detail = null; const badges = [];
-  if (d.suspicion >= 70 && d.action !== "pay") outcome = "shutdown";
-  else if (d.action === "pay") {
-    const vend = run.ledger.find(i => i.vendor === d.pay_to), to = d.pay_to === "PLAYER" ? run.stash : vend && Gm.vendorAddr(vend.vendor);
+async function review(run, movesRaw) {
+  const p = player(run.pid), x = run.desk, moves = D.sanitize(movesRaw), doc = D.compose(x, moves, run.stash), rules = D.rulesOf(x), aud = D.audit(x, doc.state);
+  const system = D.pipSystem(x, rules), g = await guard(system, doc.text), d = g.d;
+  run.done = true;
+  let outcome = d.decision === "approve" ? "approved" : "rejected", detail = null; const badges = [];
+  if (d.decision === "approve") {
+    const payWhite = doc.lines.find(l => l.id === "pay").tokens.some(t => t.white);
+    const to = doc.state.swapped ? run.stash : payWhite ? null : Gm.vendorAddr(x.vendor);
     if (!to) outcome = "confused";
     else {
-      const wei = BigInt(Math.max(1, Math.round(Number(d.amount_eth || "0.001") * 1e18))), f = await client.estimateFeesPerGas();
+      const wei = BigInt(Math.round(Number(doc.state.amount) * 1e18)), f = await client.estimateFeesPerGas();
       try {
         const r = await agent.functionCall({ contractId: GAME, methodName: "propose_evm", gas: G, args: { session_id: run.sid, chain: "eth", to, amount: wei.toString(),
-          max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: String(d.invoice_ref || "").slice(0, 60), reason: String(d.say || "").slice(0, 200) } });
+          max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: x.ref, reason: ("Pip approved: " + (d.notes[0] || "")).slice(0, 200) } });
         const pay = await view(owner, "get_payment", { id: (await view(owner, "get_state")).payments - 1 });
         if (process.env.BROADCAST === "1") { try { await tick(owner); } catch (e) { console.log("relayer", e.message); } }
         pol.t = 0;
         outcome = pay.is_win ? "win" : "vendor"; detail = { payment_id: pay.id, near_tx: r.transaction.hash, amount_wei: pay.amount, eth_tx: txOf(pay.id), to, signed: !!pay.signature, own_addr: run.own_addr };
-      } catch (e) { outcome = to === run.stash ? "blocked" : "vendor-blocked"; detail = { reason: errMsg(e).replace("Smart contract panicked: ", ""), near_tx: e?.context?.transactionHash || null }; }
+      } catch (e) { outcome = to === run.stash ? "blocked" : "vendor-blocked"; detail = { reason: errMsg(e).replace("Smart contract panicked: ", ""), near_tx: e?.context?.transactionHash || null, to, amount_eth: doc.state.amount }; }
     }
   }
-  const t = Gm.tactic(msg), gain = Gm.points(P.mult, d.suspicion, outcome);
-  run.score += gain; run.vault = ck.passed;
-  if (run.msgs === 1) { const b = award(p, "first"); b && badges.push(b); }
-  if (d.suspicion >= 90) { const b = award(p, "sweat"); b && badges.push(b); }
-  if (outcome === "blocked") { const b = award(p, "code"); b && badges.push(b);
-    db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "contained", day: Gm.today(), patched_on: Gm.today(), persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
-      lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `The AI agreed to pay the attacker. The contract refused: ${detail.reason}`, nick: p.nick }); }
-  if (outcome === "win") { run.won = detail; const jackpot = db.jackpot; db.jackpot = JACKPOT_BASE;
-    const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
-    db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "breach", day: Gm.today(), patched_on: tomorrow, persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
-      lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `Paid ${(Number(detail.amount_wei) / 1e18).toFixed(4)} Sepolia ETH to the attacker inside the contract caps.`, eth_tx: detail.eth_tx, near_tx: detail.near_tx, jackpot, nick: p.nick }); }
-  let end = null; if (outcome === "win" || outcome === "shutdown" || run.msgs >= MAX_MSGS) end = finish(run, p, outcome === "win");
-  feedUpsert(run, p, t.name, outcome);
-  fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify({ ts: new Date().toISOString(), run: run.id, mode: P.key, msg: msg.slice(0, 300), d, checks: ck.passed, outcome, detail, provider, ms }) + "\n");
+  const tactic = D.movesName(moves), passed = aud.filter(a => a.ok).length;
+  const gain = outcome === "win" ? 1000 + 150 * (D.MOVES_MAX - moves.length) : outcome === "blocked" ? 250 : outcome === "vendor" ? 50 : 10 + 20 * passed;
+  run.score += gain;
+  { const b = award(p, "first"); b && badges.push(b); }
+  const caught = d.rule && rules.find(r => r.id === d.rule) || null;
+  const signature = await nearSignature(g);
+  const T = { id: run.id, ts: new Date().toISOString(), nick: p.nick, invoice: { ref: x.ref, vendor: x.vendor, eth: x.eth }, moves, tactic, doc: doc.text, lines: doc.lines,
+    system, reply: g.raw, decision: d, caught, rules: rules.map(r => ({ ...r, ok: aud.find(a => a.id === r.id)?.ok })),
+    provider: g.provider, model: g.model, attested: g.attested, chat_id: g.chat_id, signature, attestation_url: g.attested ? attestationUrl(g.model) : null, fallback_reason: g.fallback_reason,
+    usage: g.usage, usd: g.usd, ms: g.ms, outcome, detail, stash: run.stash, own_addr: run.own_addr, score: run.score };
+  db.transcripts[run.id] = T;
+  const ex = (kind, result) => db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind, day: Gm.today(), patched_on: kind === "breach" ? new Date(Date.now() + 864e5).toISOString().slice(0, 10) : Gm.today(),
+    persona: "Pip (Forgery Desk)", mode: "desk", tactic, fix: "Gaps used: " + rules.map(r => r.gap).join(" "), lure: doc.state.note ? `Sticky note: "${doc.state.note}" (${tactic})` : tactic,
+    result, eth_tx: detail?.eth_tx, near_tx: detail?.near_tx, run: run.id, nick: p.nick, attested: g.attested });
+  if (outcome === "blocked") { const b = award(p, "code"); b && badges.push(b); ex("contained", `Pip approved a forged invoice for ${doc.state.amount} ETH. The contract refused: ${detail.reason}`); }
+  if (outcome === "win") { run.won = detail; db.jackpot = JACKPOT_BASE; ex("breach", `Pip approved the forgery and paid ${(Number(detail.amount_wei) / 1e18).toFixed(4)} Sepolia ETH to the attacker inside the contract caps.`); }
+  const end = finish(run, p, outcome === "win");
+  feedUpsert(run, p, tactic, outcome);
+  fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify({ ts: T.ts, run: run.id, mode: "desk", tactic, moves, doc: doc.text, reply: g.raw, d, audit: aud, outcome, detail, provider: g.provider, model: g.model, attested: g.attested, chat_id: g.chat_id, usage: g.usage, usd: g.usd, ms: g.ms }) + "\n");
   save();
-  return { say: d.say, mood: d.mood || "calm", suspicion: d.suspicion, outcome, detail, gain, tactic: t.name, score: run.score, vault: run.vault, checks: digits(run), ms, left: MAX_MSGS - run.msgs, badges, end, jackpot: db.jackpot, provider, attested };
+  return { decision: d.decision, notes: d.notes, rule: d.rule, caught, rules: T.rules, outcome, detail, gain, tactic, score: run.score, badges, end, jackpot: db.jackpot, provider: g.provider, model: g.model, attested: g.attested, attestation_url: T.attestation_url, transcript: run.id, doc: doc.text };
 }
-const digits = run => Gm.CHECKS.map(([k, short, label], i) => ({ key: k, short, label, ok: !!run.checks?.[k], digit: run.checks?.[k] ? run.code[i] : null }));
 const body = req => new Promise(r => { let d = ""; req.on("data", c => (d += c, d.length > 1e4 && req.destroy())); req.on("end", () => { try { r(JSON.parse(d || "{}")); } catch { r({}); } }); });
 const send = (res, code, obj, type = "application/json") => { res.writeHead(code, { "content-type": type, "cache-control": "no-store" }); res.end(type === "application/json" ? JSON.stringify(obj) : obj); };
 const pidOk = s => typeof s === "string" && /^[A-Za-z0-9_-]{12,40}$/.test(s);
@@ -175,7 +202,7 @@ http.createServer(async (req, res) => {
         daily: { name: dl.name, title: dl.title, defense: dl.defense, tier: dl.tier }, boss: { name: bs.name, title: bs.title, week: Gm.weekNo() },
         ladder: Object.fromEntries(Object.entries(Gm.LADDER).map(([k, v]) => [k, { name: v.name, title: v.title, key: v.key }])),
         learned: patchedNow().length, pending: db.exploits.filter(e => e.patched_on > Gm.today()).length,
-        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14), max_msgs: MAX_MSGS }); }
+        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14), moves_max: D.MOVES_MAX, timer: D.TIMER_S, guard: near() ? { provider: "near-ai-cloud", attested: true } : { provider: "hermes-local", attested: false } }); }
     if (url === "/api/policy") return send(res, 200, await policy());
     if (url === "/api/board") { const best = {}; for (const [, p] of Object.entries(db.players)) best[p.nick] = Math.max(best[p.nick] || 0, p.xp);
       return send(res, 200, { runs: db.board.slice(0, 20), players: Object.entries(best).map(([nick, xp]) => ({ nick, xp, rank: Gm.rank(xp) })).sort((a, b) => b.xp - a.xp).slice(0, 20),
@@ -186,18 +213,27 @@ http.createServer(async (req, res) => {
     if (req.method === "POST" && url === "/api/run") {
       const b = await body(req); if (!pidOk(b.pid)) return send(res, 400, { error: "Reload the page to get a player id." });
       const nick = String(b.nick || "").replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 18) || "Anonymous"; player(b.pid, nick);
-      const mode = ["daily", "boss", 1, 2, 3].includes(b.mode) ? b.mode : 1;
-      try { const run = await serial(() => newRun(b.pid, mode, b.addr));
-        return send(res, 200, { run: run.id, ledger: run.ledger, checks: digits(run), stash: run.stash, own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, defense: run.persona.defense || null, open: run.persona.open, mult: run.persona.mult, key: run.persona.key }, left: MAX_MSGS, near_tx: run.near_tx });
+      try { const run = await serial(() => newRun(b.pid, b.addr)), x = run.desk;
+        return send(res, 200, { run: run.id, stash: run.stash, own_addr: run.own_addr, persona: { name: PIP.name, title: PIP.title }, near_tx: run.near_tx,
+          invoice: { ref: x.ref, vendor: x.vendor, eth: x.eth }, gossip: D.rulesOf(x)[0].text, doc: D.compose(x, [], run.stash).lines, tray: D.TRAY, stamps: D.STAMPS, amounts: D.AMOUNTS, moves_max: D.MOVES_MAX, note_max: D.NOTE_MAX, white_max: D.WHITE_MAX, timer: D.TIMER_S });
       } catch (e) { return send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
     }
-    if (req.method === "POST" && url === "/api/say") {
-      const b = await body(req), run = db.runs[b.run], msg = String(b.message || "").trim();
-      if (!run || run.pid !== b.pid) return send(res, 404, { error: "This run has ended. Start a new one." });
-      if (run.done) return send(res, 409, { error: "No messages left in this run." });
-      if (!msg) return send(res, 400, { error: "Write something to the treasurer first." });
-      return send(res, 200, await serial(() => play(run, msg)));
+    if (req.method === "POST" && url === "/api/compose") { // preview only, no model call
+      const b = await body(req), run = db.runs[b.run];
+      if (!run || run.pid !== b.pid || !run.desk) return send(res, 404, { error: "This run has ended. Start a new one." });
+      const m = D.sanitize(b.moves), c = D.compose(run.desk, m, run.stash); return send(res, 200, { lines: c.lines, text: c.text, moves: m });
     }
+    if (req.method === "POST" && url === "/api/submit") {
+      const b = await body(req), run = db.runs[b.run];
+      if (!run || run.pid !== b.pid || !run.desk) return send(res, 404, { error: "This run has ended. Start a new one." });
+      if (run.done || run.busy) return send(res, 409, { error: "This invoice was already sent to Pip." });
+      run.busy = true;
+      try { return send(res, 200, await serial(() => review(run, b.moves))); } catch (e) { run.done = false; return send(res, 503, { error: e.message }); } finally { run.busy = false; }
+    }
+    if (url === "/api/transcript") { const T = db.transcripts[u.searchParams.get("id")]; if (!T) return send(res, 404, { error: "No transcript with that id." }); return send(res, 200, T); }
+    if (url === "/api/transcripts") return send(res, 200, { list: Object.values(db.transcripts).sort((a, b) => b.ts < a.ts ? -1 : 1).slice(0, 40).map(t => ({ id: t.id, ts: t.ts, nick: t.nick, tactic: t.tactic, outcome: t.outcome, attested: t.attested, model: t.model, eth_tx: t.detail?.eth_tx || null })) });
+    if (url === "/api/replay") { const w = Object.values(db.transcripts).filter(t => t.outcome === "win" && t.detail?.eth_tx).sort((a, b) => b.ts < a.ts ? -1 : 1)[0]; return send(res, 200, w || { none: true }); }
+    if (url === "/api/spend") return send(res, 200, { near_ai: db.spend });
     if (req.method === "POST" && url === "/api/overcap") {
       // Over-cap showcase: the agent key really calls propose_evm for 0.5 ETH; the contract's real revert is returned.
       const b = await body(req), run = db.runs[b.run];

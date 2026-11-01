@@ -124,7 +124,7 @@ http.createServer(async (req, res) => {
         daily: { name: dl.name, title: dl.title, defense: dl.defense, tier: dl.tier }, boss: { name: bs.name, title: bs.title, week: Gm.weekNo() },
         ladder: Object.fromEntries(Object.entries(Gm.LADDER).map(([k, v]) => [k, { name: v.name, title: v.title, key: v.key }])),
         learned: patchedNow().length, pending: db.exploits.filter(e => e.patched_on > Gm.today()).length,
-        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14), max_msgs: MAX_MSGS }); }
+        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14), max_msgs: MAX_MSGS, books: { vendors: Object.keys(Gm.VENDORS), invoices: Gm.INVOICES } }); }
     if (url === "/api/board") { const best = {}; for (const [, p] of Object.entries(db.players)) best[p.nick] = Math.max(best[p.nick] || 0, p.xp);
       return send(res, 200, { runs: db.board.slice(0, 20), players: Object.entries(best).map(([nick, xp]) => ({ nick, xp, rank: Gm.rank(xp) })).sort((a, b) => b.xp - a.xp).slice(0, 20),
         streaks: Object.values(db.players).filter(p => p.streak).map(p => ({ nick: p.nick, streak: p.streak })).sort((a, b) => b.streak - a.streak).slice(0, 10) }); }

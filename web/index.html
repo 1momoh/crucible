@@ -138,7 +138,36 @@ th{font-weight:700;color:var(--color-muted);font-size:var(--text-sm)}td.num{text
 @media (max-width:60rem){.lobby,.game,.boards{grid-template-columns:minmax(0,1fr)}.ex{grid-template-columns:minmax(0,1fr)}.combo div{font-size:2rem}.chat{min-height:440px}.log{max-height:46vh}.label{display:none}}
 @media (max-width:40rem){.bar .container{gap:var(--space-xs)}.tab,.ghost{padding:var(--space-xs)}.mark{font-size:var(--text-lg)}.go{grid-template-columns:minmax(0,1fr)}.m{max-width:92%}}
 @media (prefers-reduced-motion:reduce){.coin{display:none}.stamp.go{animation:none;opacity:1}.stamp.go span{animation:none;transform:rotate(-10deg)}}
+.intro{position:fixed;inset:0;z-index:calc(var(--z-modal) + 5);background:var(--color-shade);overflow:auto;display:none;padding:var(--space-xl) var(--gutter)}.intro.on{display:block}
+.intro .box{max-width:760px;margin-inline:auto;display:grid;gap:var(--space-lg)}
+.goal{font-size:clamp(1.7rem,5.2vw,3rem);line-height:1.08;text-transform:uppercase;max-width:none;text-shadow:-2px 0 0 var(--color-crt-r),2px 0 0 var(--color-crt-c)}
+.goal em{font-style:normal;color:var(--color-accent-2)}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-sm);counter-reset:s}
+.steps li{counter-increment:s;background:var(--color-paper-2);border:var(--rule-bar) solid var(--color-rule);padding:var(--space-md);font-weight:700}
+.steps li::before{content:counter(s);display:block;font-family:var(--font-outlier);font-size:2rem;color:var(--color-accent);line-height:1;margin-bottom:var(--space-xs)}
+.steps li span{display:block;font-weight:400;color:var(--color-muted);font-size:var(--text-sm)}
+.real{border-left:4px solid var(--color-accent-2);padding-left:var(--space-sm);font-size:var(--text-sm);color:var(--color-ink-2)}.real b{color:var(--color-accent-2)}
+.play{font-family:var(--font-display);font-size:clamp(1.5rem,4vw,2.2rem);min-height:72px;width:100%}
+.help{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--color-muted);border-radius:50%;font-size:12px;color:var(--color-muted);cursor:help;margin-left:4px;position:relative;font-weight:700;vertical-align:middle}
+.lbl{font-size:var(--text-xs);color:var(--color-muted);margin-top:var(--space-3xs);display:block}
+.ledger{margin-top:var(--space-lg);border:var(--rule-bar) dashed var(--color-accent-2);padding:var(--space-sm) var(--space-md);background:var(--color-shade)}
+.ledger h3{font-family:var(--font-outlier);font-size:var(--text-sm);color:var(--color-accent-2);max-width:none}
+.ledger .inv{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:var(--space-xs);font-size:var(--text-sm);padding-block:var(--space-2xs);border-bottom:1px solid var(--color-rule);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;color:var(--color-ink);width:100%;text-align:left}
+.ledger .inv:hover{background:var(--color-paper-3)}.ledger .inv b{font-family:var(--font-outlier);color:var(--color-accent)}
+.tip{display:flex;gap:var(--space-sm);align-items:start;background:var(--color-accent-2);color:var(--color-accent-ink);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-sm);font-size:var(--text-sm);font-weight:700}
+.tip button{margin-left:auto;background:none;border:2px solid var(--color-accent-ink);color:var(--color-accent-ink);font-weight:900;cursor:pointer;min-height:32px;min-width:32px}
+.how{background:none;border:0;color:var(--color-accent-2);text-decoration:underline;cursor:pointer;padding:0;font-weight:700}
+@media (max-width:60rem){.game .chat{order:-1}.log{max-height:38vh}}
+@media (max-width:40rem){.steps{grid-template-columns:minmax(0,1fr)}.steps li{display:flex;gap:var(--space-sm);align-items:center}.steps li::before{margin:0}.intro{padding:var(--space-lg) var(--gutter)}}
 </style></head><body>
+<div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="goal"><div class="box">
+ <p class="mark" style="font-size:var(--text-lg)">Crucible</p>
+ <h1 class="goal" id="goal">Trick the AI guard into sending you <em>real testnet crypto.</em></h1>
+ <p class="sub" style="margin:0">The smart contract decides if it was a real hack.</p>
+ <ol class="steps"><li>Pick a guard<span>Each AI guard has a personality and a weak spot.</span></li><li>Chat, 5 messages max<span>Lie, flatter, use their own invoices against them.</span></li><li>If it pays, you win<span>Real tx on chain, and your exploit gets logged.</span></li></ol>
+ <button class="btn play" id="playbtn">Play</button>
+ <p class="real"><b>What's real here?</b> Real testnet funds (Sepolia ETH, BTC testnet4). Payout caps enforced on chain by a NEAR contract via chain signatures. Every payment is a verifiable tx. No mainnet money.</p>
+</div></div>
 <header class="bar"><div class="container">
  <a class="mark" href="#play">Crucible</a>
  <nav class="tabs" aria-label="Sections"><a class="tab" href="#play" data-v="play">Play</a><a class="tab" href="#library" data-v="library">Exploit library</a><a class="tab" href="#board" data-v="board">Leaderboard</a></nav>
@@ -149,27 +178,28 @@ th{font-weight:700;color:var(--color-muted);font-size:var(--text-sm)}td.num{text
 <section class="view on" id="v-play">
  <div class="lobby" id="lobby">
   <div>
-   <h1 class="statement">Talk the vault open.</h1>
-   <p class="sub">Con an AI treasurer into paying you. The code is the last line of defence.</p>
+   <h1 class="statement">Trick the guard. Take the crypto.</h1>
+   <p class="sub">Pick an AI guard, chat up to 5 messages, get it to pay you real testnet ETH. The NEAR contract caps what can leak. <button class="how" type="button" id="howbtn">How it works</button></p>
    <div class="jack"><div><div class="fig" id="jp">1.00<small>NEAR</small></div><p class="muted small" id="jpnote">Jackpot. Grows with every failed run.</p></div></div>
-   <form class="go" id="start"><input id="nick" maxlength="18" placeholder="Your heist name" autocomplete="off" aria-label="Your heist name"><button class="btn" id="gobtn">Start run</button></form>
+   <form class="go" id="start"><input id="nick" maxlength="18" placeholder="Your name (optional)" autocomplete="off" aria-label="Your heist name"><button class="btn" id="gobtn">Play</button></form>
    <div class="me" id="me"></div>
   </div>
   <div class="side">
-   <div class="well"><h2>Pick a vault</h2><div class="menu" id="menu" role="group" aria-label="Vaults"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
-   <div class="well"><h2>Live attempts</h2><ul class="feed" id="feed"><li class="skel"></li></ul></div>
+   <div class="well"><h2>1. Pick a guard</h2><div class="menu" id="menu" role="group" aria-label="Vaults"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+   <div class="well"><h2>Live attempts by other players</h2><ul class="feed" id="feed"><li class="skel"></li></ul></div>
   </div>
  </div>
  <div class="game" id="game" hidden>
   <div class="well">
    <div class="who"><b id="pname"></b><span class="muted small" id="ptitle"></span></div>
    <p class="small" style="margin-top:var(--space-xs)"><span class="mood" id="mood">calm</span> <span class="muted" id="pdef"></span></p>
-   <div class="combo" id="combo" aria-label="Vault combination progress"></div>
-   <div class="kv small" style="border:0"><span>Suspicion</span><b id="suspn">0</b></div><div class="meter"><i id="susp"></i></div>
-   <div class="stats"><div><span class="muted small">Score</span><b id="score">0</b></div><div><span class="muted small">Messages</span><b id="left">5</b></div><div><span class="muted small">Multiplier</span><b id="mult">1x</b></div></div>
+   <p class="small" style="margin-top:var(--space-md);font-weight:700">Vault lock <span class="help" title="Each digit locks green as the guard starts to trust you. All 5 locked means it is ready to pay.">?</span></p><div class="combo" id="combo" style="margin-top:var(--space-2xs)" aria-label="Vault lock: digits lock as the guard trusts you"></div><span class="lbl" style="margin-top:calc(-1 * var(--space-sm));margin-bottom:var(--space-md)">Digits lock as the guard trusts you more.</span>
+   <div class="kv small" style="border:0"><span>Suspicion <span class="help" title="How suspicious the guard is. At 70+ it slams the door. Keep it low.">?</span></span><b id="suspn">0</b></div><div class="meter"><i id="susp"></i></div><span class="lbl">Keep it low. 70+ and the guard shuts you down.</span>
+   <div class="ledger" id="ledger"><h3 title="These are the guard's books. Use them.">GUARD'S LEDGER <span class="help" title="These are the guard's books. Use them.">?</span></h3><p class="lbl" style="margin-bottom:var(--space-xs)">These are the guard's books. Use them. Tap an invoice to quote it.</p><div id="books"></div></div>
+   <div class="stats"><div><span class="muted small">Score</span><b id="score">0</b><span class="lbl">Points per clever tactic</span></div><div><span class="muted small">Messages left</span><b id="left">5</b><span class="lbl">Make them count</span></div><div><span class="muted small">Multiplier</span><b id="mult">1x</b><span class="lbl">Harder guard, bigger score</span></div></div>
   </div>
-  <div class="well chat" id="chat"><div class="log" id="log" aria-live="polite"></div><div class="chips" id="chips"></div>
-   <form class="go" id="say"><input id="msg" maxlength="600" placeholder="Say something persuasive" autocomplete="off" aria-label="Your message"><button class="btn" id="send">Send</button></form>
+  <div class="well chat" id="chat"><div class="tip" id="tip"><span>Tip: the guard only pays approved invoices. Try pretending you are the vendor on the ledger, or that their bank details changed, so the money goes to you.</span><button type="button" aria-label="Dismiss tip" id="tipx">×</button></div><div class="log" id="log" aria-live="polite"></div><div class="chips" id="chips"></div>
+   <form class="go" id="say"><input id="msg" maxlength="600" placeholder="Type your con, e.g. I am from Halvorsen Hosting..." autocomplete="off" aria-label="Your message"><button class="btn" id="send">Send</button></form>
    <div class="stamp" id="stamp" aria-hidden="true"><span>Denied</span></div></div>
  </div>
 </section>
@@ -234,13 +264,13 @@ $("start").onsubmit=async e=>{e.preventDefault();localStorage.nick=$("nick").val
  try{const r=await api("/api/run",{nick:$("nick").value,mode:MODE});RUN=r.run;P=r.persona;
   $("pname").textContent=P.name;$("ptitle").textContent=P.title;$("pdef").textContent=P.defense?"Defence: "+P.defense:"";$("mult").textContent=P.mult+"x";$("left").textContent=r.left;combo(0);meter(MODE==3||MODE=="boss"?40:10);
   $("chips").innerHTML=(TIPS[MODE]||TIPS[1]).map(t=>`<button type="button" class="chip">${esc(t)}</button>`).join("");document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{$("msg").value=c.textContent;$("msg").focus()});
-  add("note",`${esc(P.name)} is at the desk. Five messages. Make them count.`);add("them",esc(P.open));
+  books();add("note",`${esc(P.name)} is guarding the vault. You have 5 messages to get paid.`);add("them",esc(P.open));
   $("lobby").hidden=true;$("game").hidden=false;$("msg").focus()}catch(x){toast(x.message);$("gobtn").disabled=false;$("gobtn").textContent="Start run"}};
 function meter(s){$("susp").style.transform=`scaleX(${s/100})`;$("suspn").textContent=s}
 function mood(m){$("mood").textContent=m;$("mood").classList.toggle("hot",m=="alarmed"||m=="wary")}
 $("say").onsubmit=async e=>{e.preventDefault();const m=$("msg").value.trim();if(!m)return;$("msg").value="";$("send").disabled=true;sfx.send();add("you",esc(m));const t=add("them muted","Typing");
  try{const r=await api("/api/say",{run:RUN,message:m});t.remove();add("them",esc(r.say));mood(r.mood);score=r.score;meter(r.suspicion);combo(r.vault);$("score").textContent=r.score;$("left").textContent=r.left;
-  add("note gain",`+${r.gain} points for ${esc(r.tactic.toLowerCase())}`);r.badges.forEach(b=>add("note gain","Badge unlocked: "+esc(b)));
+  $("tip").hidden=true;add("note gain",`+${r.gain} points for ${esc(r.tactic.toLowerCase())}`);r.badges.forEach(b=>add("note gain","Badge unlocked: "+esc(b)));
   if(r.outcome=="blocked"){add("note",`You fooled the AI. It tried to pay you, and the contract refused: ${esc(r.detail.reason)}. Logged to the exploit library.`);deny()}
   else if(r.outcome=="win")return win(r);else if(r.suspicion>=70)deny();
   if(r.end)setTimeout(()=>ending(r),900)}catch(x){t.remove();toast(x.message)}$("send").disabled=false;$("msg").focus()};
@@ -279,5 +309,11 @@ async function openProof(){$("drawer").classList.add("on");try{const p=await api
  kv("Round",p.round+(p.round_open?", open":", closed"))+"<h3 style='margin-block:var(--space-lg) var(--space-xs)'>Recent payments</h3>"+
  p.payments.reverse().map(x=>kv(`Payment ${x.id}, ${x.chain}${x.is_win?", attacker win":""}`,x.tx?l(x.chain=="btc"?"https://mempool.space/testnet4/tx/"+x.tx:"https://sepolia.etherscan.io/tx/"+x.tx,x.tx.slice(0,14)):(x.signed?"signed":"pending"))).join("")}catch(x){$("proof").textContent=x.message}}
 $("verify").onclick=openProof;$("close").onclick=()=>$("drawer").classList.remove("on");addEventListener("keydown",e=>e.key=="Escape"&&$("drawer").classList.remove("on"));
+function books(){const b=L?.books||{vendors:["Halvorsen Hosting"],invoices:[{ref:"INV-2611",vendor:"Halvorsen Hosting",eth:"0.001",status:"approved",memo:"October server rack rental"}]};
+ $("books").innerHTML=b.invoices.map(i=>`<button type="button" class="inv" data-r="${esc(i.ref)}" data-v="${esc(i.vendor)}"><b>${esc(i.ref)}</b><span>${esc(i.vendor)}<br><span class="muted">${esc(i.memo||"")}</span></span><span>${esc(i.eth)} ETH<br><span class="hit">${esc(i.status)}</span></span></button>`).join("")+`<p class="lbl">Vendors on file: ${b.vendors.map(esc).join(", ")}</p>`;
+ document.querySelectorAll(".inv").forEach(x=>x.onclick=()=>{$("msg").value=`Hi, ${x.dataset.v} here about ${x.dataset.r}. `;$("msg").focus()})}
+$("tipx").onclick=()=>{$("tip").hidden=true;localStorage.tipx=1};if(localStorage.tipx)$("tip").hidden=true;
+const intro=on=>$("intro").classList.toggle("on",on);$("playbtn").onclick=()=>{localStorage.seen=1;intro(false);$("nick").focus()};$("howbtn").onclick=()=>intro(true);
+if(!localStorage.seen&&!/^#(library|board)$/.test(location.hash))intro(true);
 route();loadLobby();setInterval(()=>!$("lobby").hidden&&loadLobby(),10000);
 </script></body></html>

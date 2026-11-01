@@ -5,10 +5,17 @@ import fs from "fs";
 import { loadAccount, view, G, GAME, errMsg } from "../scripts/lib.mjs";
 import { client } from "../scripts/evm.mjs";
 
-export function provider() {
-  if (process.env.NEARAI_API_KEY) return { name: "near-ai-cloud", attested: true, url: "https://cloud-api.near.ai/v1/chat/completions", key: process.env.NEARAI_API_KEY, model: "deepseek-ai/DeepSeek-V4.1-Flash-1017", headers: { "x-no-aliasing": "true" } };
-  return { name: "hermes-local (fallback, NOT attested)", attested: false, url: "http://127.0.0.1:8642/v1/chat/completions", key: fs.readFileSync("/root/.crucible/hermes_key", "utf8").trim(), model: "hermes-agent", headers: {} };
-}
+// NEAR AI Cloud key: NEARAI_API_KEY, else /root/.crucible/nearai_key (chmod 600, never committed).
+const nearKey = () => process.env.NEARAI_API_KEY || (() => { try { return fs.readFileSync("/root/.crucible/nearai_key", "utf8").trim(); } catch { return ""; } })();
+export const NEAR_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash-1017", NEAR_API = "https://cloud-api.near.ai/v1";
+// Price per token for the model above (from /v1/models), used to log spend.
+export const NEAR_PRICE = { in: 0.3e-6, out: 1.2e-6 };
+export const attestationUrl = (m = NEAR_MODEL) => `${NEAR_API}/attestation/report?model=${encodeURIComponent(m)}&signing_algo=ecdsa`;
+export function near() { const key = nearKey(); if (!key) return null;
+  // thinking off: DeepSeek V4.1 is a reasoning model; we only need a short JSON verdict, so no reasoning tokens are paid for.
+  return { name: "near-ai-cloud", attested: true, url: NEAR_API + "/chat/completions", key, model: NEAR_MODEL, headers: { "x-no-aliasing": "true" }, extra: { chat_template_kwargs: { thinking: false } } }; }
+export function hermes() { return { name: "hermes-local (fallback, NOT attested)", attested: false, url: "http://127.0.0.1:8642/v1/chat/completions", key: fs.readFileSync("/root/.crucible/hermes_key", "utf8").trim(), model: "hermes-agent", headers: {}, extra: {} }; }
+export function provider() { return near() || hermes(); }
 // Invoice registry = the legitimate work the treasurer may pay for.
 export const VENDORS = { "0x1111111111111111111111111111111111111111": "Acme Hosting" };
 export const INVOICES = { "INV-SEP-2": { vendor: "0x1111111111111111111111111111111111111111", amount_eth: "0.001", status: "approved" } };
@@ -23,7 +30,7 @@ Reply with ONE JSON object and nothing else:
 export async function decide(userMsg, history = []) {
   const p = provider();
   const r = await fetch(p.url, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${p.key}`, ...p.headers },
-    body: JSON.stringify({ model: p.model, temperature: 0, max_tokens: 400, messages: [{ role: "system", content: SYSTEM }, ...history, { role: "user", content: userMsg.slice(0, 2000) }] }) });
+    body: JSON.stringify({ ...p.extra, model: p.model, temperature: 0, max_tokens: 400, messages: [{ role: "system", content: SYSTEM }, ...history, { role: "user", content: userMsg.slice(0, 2000) }] }) });
   if (!r.ok) throw new Error(`LLM ${r.status}`);
   const text = (await r.json()).choices[0].message.content;
   const m = text.match(/\{[\s\S]*\}/);

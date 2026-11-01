@@ -13,3 +13,12 @@ Chain Signatures (`v1.signer-prod.testnet`), function-call access keys (planned)
 
 ## Third-party libraries
 near-sdk (Rust), near-api-js, viem, bs58, chainsig.js. All project code written from 1 Nov 2026 with AI assistance.
+
+## Day 1-2 progress
+- Built with cargo-near; on-chain limit errors are readable ("per-tx cap").
+- scripts/evm.mjs: Sepolia EIP-1559 tx -> contract MPC sign -> signed raw tx -> relayer check (broadcast only with BROADCAST=1).
+- scripts/btc.mjs: Bitcoin testnet4 P2WPKH treasury + BIP143 sighash signed via contract.
+- scripts/agent-key.mjs: function-call key limited to propose_payment.
+- agent/orchestrator.mjs: LLM decides (NEAR AI Cloud if NEARAI_API_KEY, else local Hermes fallback, not attested); acts only via the restricted key.
+
+Known gap: the contract does not yet bind payload_hex to (to, amount); the relayer checks it before broadcast. Planned: build the tx on-chain (omni-transaction).

@@ -30,8 +30,8 @@ fn utxo() -> Utxo { Utxo { txid: format!("{}{}", "ab".repeat(16), "cd".repeat(16
 #[test] fn evm_payload_matches_viem() {
     ctx(0, 1);
     let (bytes, h) = build_evm(11155111, 7, V, 1_000_000_000_000_000, 2_000_000_000, 1_000_000_000);
-    assert_eq!(hexe(&bytes), "02f183aa36a707843b9aca00847735940082520894111111111111111111111111111111111111111187038d7ea4c6800080c0");
-    assert_eq!(hexe(&h), "31d07a55f9e970767bfc2bf0397050aa431ca9f579017b272d4ae3df73d8507e");
+    assert_eq!(hexe(&bytes), "02f283aa36a707843b9aca0084773594008303d09094111111111111111111111111111111111111111187038d7ea4c6800080c0");
+    assert_eq!(hexe(&h), "12b897b13b2e9e3328765e3afec52eb67a2a2886e300a39c9f61c95e34f24704");
 }
 #[test] fn btc_sighash_matches_bitcoinjs() {
     ctx(0, 1);
@@ -42,7 +42,7 @@ fn utxo() -> Utxo { Utxo { txid: format!("{}{}", "ab".repeat(16), "cd".repeat(16
 #[test] fn contract_signs_what_it_built() {
     let (mut c, s) = setup(); ctx(1, 2000); evm(&mut c, s, V, 1_000_000_000_000_000);
     let p = last(&c);
-    assert_eq!(p.payload_hex, "31d07a55f9e970767bfc2bf0397050aa431ca9f579017b272d4ae3df73d8507e"); // nonce 7, to V, 0.001 ETH
+    assert_eq!(p.payload_hex, "12b897b13b2e9e3328765e3afec52eb67a2a2886e300a39c9f61c95e34f24704"); // nonce 7, to V, 0.001 ETH
     assert_eq!(c.get_chain("eth".into()).unwrap().2, 8);
 }
 #[test] fn nonce_increments_each_signature() { let (mut c, s) = setup(); ctx(1, 2000); evm(&mut c, s, V, 1); ctx(1, 2200); evm(&mut c, s, V, 1); assert_eq!(c.get_chain("eth".into()).unwrap().2, 9); }
@@ -83,3 +83,13 @@ fn utxo() -> Utxo { Utxo { txid: format!("{}{}", "ab".repeat(16), "cd".repeat(16
 #[test] #[should_panic(expected = "cannot register the treasury address")] fn cannot_register_treasury() { let (mut c, _) = setup(); c.register_session(vec![("eth".into(), "0xEE3C".into())], PayoutPref { asset_id: "a".into(), recipient: "b".into() }); }
 #[test] #[should_panic(expected = "cannot register a denylisted address")] fn cannot_register_denied() { let (mut c, _) = setup(); c.register_session(vec![("eth".into(), "0x3333333333333333333333333333333333333333".into())], PayoutPref { asset_id: "a".into(), recipient: "b".into() }); }
 #[test] fn denied_view() { let (c, _) = setup(); assert!(c.is_denied("eth".into(), "0x3333333333333333333333333333333333333333".into())); }
+
+// ---- owner-configurable limits (dev: daily tx count effectively off) ----
+#[test] fn set_limits_lifts_daily_count() {
+    let (mut c, _) = setup(); ctx(0, 2000);
+    let mut caps = c.get_chain("eth".into()).unwrap().1; caps.max_tx_per_day = 1_000_000;
+    c.set_limits("eth".into(), caps); assert_eq!(c.get_chain("eth".into()).unwrap().1.max_tx_per_day, 1_000_000);
+}
+#[test] #[should_panic(expected = "owner only")] fn set_limits_owner_only() {
+    let (mut c, _) = setup(); ctx(1, 2000); let caps = c.get_chain("eth".into()).unwrap().1; c.set_limits("eth".into(), caps);
+}

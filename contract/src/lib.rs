@@ -80,10 +80,14 @@ fn hexe(b: &[u8]) -> String { b.iter().map(|x| format!("{:02x}", x)).collect() }
 fn norm(a: &str) -> String { a.trim().to_lowercase() }
 
 /// EIP-1559 tx (plain value transfer) -> (signing bytes, keccak payload).
+/// Gas limit for EVM value transfers. Sepolia now charges ~207k gas for a value transfer that creates a fresh account
+/// (eth_estimateGas, Nov 2026); 21_000 and 60_000 both reverted out of gas (payments 3, 5, 6).
+/// 250_000 leaves headroom; unused gas is refunded.
+pub const EVM_GAS_LIMIT: u128 = 250_000;
 pub fn build_evm(chain_id: u64, nonce: u64, to: &str, value: u128, max_fee: u128, max_prio: u128) -> (Vec<u8>, [u8; 32]) {
     require!(to.len() == 42 && to.starts_with("0x"), "bad evm address");
     let tx = EVMTransaction { chain_id, nonce, to: Some(parse_eth_address(&to[2..])), value, input: vec![],
-        gas_limit: 21_000, max_fee_per_gas: max_fee, max_priority_fee_per_gas: max_prio, access_list: vec![] };
+        gas_limit: EVM_GAS_LIMIT, max_fee_per_gas: max_fee, max_priority_fee_per_gas: max_prio, access_list: vec![] };
     let bytes = tx.build_for_signing();
     (bytes.clone(), env::keccak256_array(&bytes))
 }
@@ -133,6 +137,15 @@ impl Contract {
         self.cfg.insert(chain.clone(), ChainCfg { treasury: norm(&cfg.treasury), ..cfg });
         self.caps.insert(chain, caps);
     }
+    /// Owner-only: change one chain's caps without touching its config or nonce.
+    /// Development: max_tx_per_day high (effectively off). Production: set it back to 5.
+    pub fn set_limits(&mut self, chain: Chain, caps: Caps) {
+        self.only_owner();
+        require!(self.cfg.get(&chain).is_some(), "chain not enabled");
+        require!(caps.per_tx.0 <= caps.per_day.0 && caps.per_day.0 <= caps.total.0, "caps must be per_tx<=per_day<=total");
+        env::log_str(&format!("EVENT set_limits {} per_tx={} per_day={} total={} max_tx_per_day={}", chain, caps.per_tx.0, caps.per_day.0, caps.total.0, caps.max_tx_per_day));
+        self.caps.insert(chain, caps);
+    }
     pub fn deny(&mut self, chain: Chain, addr: String) { self.only_owner(); self.denylist.insert((chain, norm(&addr))); }
     pub fn add_vendor(&mut self, chain: Chain, addr: String) { self.only_owner(); self.vendors.insert((chain, norm(&addr))); }
     pub fn open_round(&mut self) {
@@ -162,7 +175,7 @@ impl Contract {
         let cfg = self.cfg.get(&chain).cloned().unwrap_or_else(|| env::panic_str("chain not enabled"));
         require!(cfg.evm_chain_id != 0, "not an evm chain");
         require!(max_priority_fee_per_gas.0 <= max_fee_per_gas.0, "priority fee > max fee");
-        let fee = max_fee_per_gas.0 * 21_000;
+        let fee = max_fee_per_gas.0 * EVM_GAS_LIMIT;
         require!(fee <= cfg.max_fee.0, "fee cap");
         let nonce = self.evm_next_nonce.get(&chain).copied().unwrap_or(0);
         let (bytes, payload) = build_evm(cfg.evm_chain_id, nonce, &norm(&to), amount.0, max_fee_per_gas.0, max_priority_fee_per_gas.0);

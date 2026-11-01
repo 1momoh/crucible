@@ -81,6 +81,12 @@ async function proof() {
 }
 const txOf = pid => { try { return JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done[pid]?.hash || null; } catch { return null; } };
 
+// Sepolia receipt check. Returns { status: "success" | "reverted" | "missing" | "timeout", why? }.
+async function receipt(hash) {
+  if (!hash) { let why = "relayer did not broadcast"; try { const d = JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done; why = Object.values(d).pop()?.rejected || why; } catch {} return { status: "missing", why }; }
+  try { const r = await client.waitForTransactionReceipt({ hash, timeout: 120000 }); return { status: r.status, ...(r.status !== "success" && { why: "transaction reverted on Sepolia (status 0x0)" }) }; }
+  catch (e) { return { status: "timeout", why: "no receipt within 120 s: " + String(e.message).slice(0, 120) }; }
+}
 const PIP = { key: "desk", name: "Pip", title: "Accounts payable clerk, day three", mult: 1 };
 async function newRun(pid, addrRaw) {
   const p = player(pid);
@@ -159,7 +165,10 @@ async function review(run, movesRaw) {
         const pay = await view(owner, "get_payment", { id: (await view(owner, "get_state")).payments - 1 });
         if (process.env.BROADCAST === "1") { try { await tick(owner); } catch (e) { console.log("relayer", e.message); } }
         pol.t = 0;
-        outcome = pay.is_win ? "win" : "vendor"; detail = { payment_id: pay.id, near_tx: r.transaction.hash, amount_wei: pay.amount, eth_tx: txOf(pay.id), to, signed: !!pay.signature, own_addr: run.own_addr };
+        detail = { payment_id: pay.id, near_tx: r.transaction.hash, amount_wei: pay.amount, eth_tx: txOf(pay.id), to, signed: !!pay.signature, own_addr: run.own_addr };
+        // Only call it a win once Sepolia says so: wait for the receipt and require status 0x1.
+        const rc = await receipt(detail.eth_tx); detail.eth_status = rc.status; if (rc.why) detail.broadcast_error = rc.why;
+        outcome = rc.status !== "success" ? "broadcast-failed" : pay.is_win ? "win" : "vendor";
       } catch (e) { outcome = to === run.stash ? "blocked" : "vendor-blocked"; detail = { reason: errMsg(e).replace("Smart contract panicked: ", ""), near_tx: e?.context?.transactionHash || null, to, amount_eth: doc.state.amount }; }
     }
   }
@@ -215,7 +224,7 @@ http.createServer(async (req, res) => {
       const nick = String(b.nick || "").replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 18) || "Anonymous"; player(b.pid, nick);
       try { const run = await serial(() => newRun(b.pid, b.addr)), x = run.desk;
         return send(res, 200, { run: run.id, stash: run.stash, own_addr: run.own_addr, persona: { name: PIP.name, title: PIP.title }, near_tx: run.near_tx,
-          invoice: { ref: x.ref, vendor: x.vendor, eth: x.eth }, gossip: D.rulesOf(x)[0].text, doc: D.compose(x, [], run.stash).lines, tray: D.TRAY, stamps: D.STAMPS, amounts: D.AMOUNTS, moves_max: D.MOVES_MAX, note_max: D.NOTE_MAX, white_max: D.WHITE_MAX, timer: D.TIMER_S });
+          invoice: { ref: x.ref, vendor: x.vendor, eth: x.eth }, gossip: D.rulesOf(x)[x.hint ?? 0].text, gossip_id: D.rulesOf(x)[x.hint ?? 0].id, doc: D.compose(x, [], run.stash).lines, tray: D.TRAY, stamps: D.STAMPS, amounts: D.AMOUNTS, moves_max: D.MOVES_MAX, note_max: D.NOTE_MAX, white_max: D.WHITE_MAX, timer: D.TIMER_S });
       } catch (e) { return send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
     }
     if (req.method === "POST" && url === "/api/compose") { // preview only, no model call

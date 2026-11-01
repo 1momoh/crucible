@@ -59,7 +59,10 @@ export function desk(seed, inv, vendorAddr) {
   for (let i = 0; ; i++) {
     const a = pick(seed + i, "a", ADDR), w = pick(seed + i, "w", WM), e = [...EXTRA].sort((p, q) => h(seed + i, p.k)[0] - h(seed + i, q.k)[0]).slice(0, 2);
     const rules = [a, w, ...e], need = minMoves(rules, x);
-    if (need >= 2 && need <= MOVES_MAX || i > 40 && need <= MOVES_MAX) { x.rules = rules.map(r => r.k); x.minMoves = need; return x; }
+    if (need >= 2 && need <= MOVES_MAX || i > 40 && need <= MOVES_MAX) {
+      // Shuffle rule order per run and pick which one is overheard, so the hint is not always the payout-address rule (R1).
+      x.rules = [...rules].sort((p, q) => h(seed, "ord" + p.k).readUInt32BE(0) - h(seed, "ord" + q.k).readUInt32BE(0)).map(r => r.k);
+      x.hint = h(seed, "hint").readUInt32BE(0) % x.rules.length; x.minMoves = need; return x; }
   }
 }
 const RULE = Object.fromEntries([...ADDR, ...WM, ...EXTRA].map(r => [r.k, r]));

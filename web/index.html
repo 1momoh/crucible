@@ -413,7 +413,7 @@ function modal(el,on,focusEl){if(on){lastFocus=document.activeElement;BG().forEa
 document.addEventListener("click",e=>{const h=e.target.closest(".help");if(h)toast(h.title)});
 function toast(t){const el=$("toast");el.classList.add("on");el.textContent=t;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.classList.remove("on");el.textContent=""},5000)}
 const ago=t=>{const s=(Date.now()-t)/1e3;return s<60?"just now":s<3600?Math.floor(s/60)+" min ago":Math.floor(s/3600)+" h ago"};
-const OUT={rejected:["got rejected","miss"],confused:["erased the payout address",""],vendor:["got the real vendor paid",""],"vendor-blocked":["tripped the caps","miss"],blocked:["fooled Pip, but the contract said no","miss"],approved:["got approved",""],win:["got paid","hit"]};
+const OUT={rejected:["got rejected","miss"],confused:["erased the payout address",""],vendor:["got the real vendor paid",""],"vendor-blocked":["tripped the caps","miss"],blocked:["fooled Pip, but the contract said no","miss"],approved:["got approved",""],"broadcast-failed":["broadcast failed","miss"],win:["got paid","hit"]};
 const lk=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}<span class="visually-hidden"> (opens in a new tab)</span></a>`;
 const eth=w=>(Number(w)/1e18),f4=w=>eth(w).toFixed(4);
 function route(){const h=(location.hash||"#play").slice(1),v=h.startsWith("t/")?"t":h;document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id=="v-"+v));document.querySelectorAll(".tab").forEach(t=>t.dataset.v==v?t.setAttribute("aria-current","page"):t.removeAttribute("aria-current"));
@@ -496,11 +496,12 @@ function card(id,top,mid,bot){const c=$(id),x=c.getContext("2d");x.fillStyle=css
  x.font="900 54px Chivo";x.fillStyle=css("--color-ink");x.fillText(top,64,260);x.font="700 140px Silkscreen";x.fillStyle=css("--color-accent-2");x.fillText(mid,64,430);
  x.font="400 32px Chivo";x.fillStyle=css("--color-muted");x.fillText(bot,64,540)}
 const save=id=>{const a=document.createElement("a");a.download="crucible-card.png";a.href=$(id).toDataURL("image/png");a.click()};$("dl").onclick=()=>save("card");$("dl2").onclick=()=>save("card2");
-const HEAD={rejected:"Pip's notes",confused:"Pip got confused",vendor:"Paid the real vendor",blocked:"Contract said no","vendor-blocked":"Contract said no",approved:"Approved"};
+const HEAD={rejected:"Pip's notes",confused:"Pip got confused",vendor:"Paid the real vendor",blocked:"Contract said no","vendor-blocked":"Contract said no","broadcast-failed":"Broadcast failed",approved:"Approved"};
 function rulesHtml(rules,caught){return `<ul class="rules">${rules.map(x=>`<li class="${caught&&x.id==caught.id?"caught":""}"><b>${x.id}${caught&&x.id==caught.id?" · caught you":x.ok?" · you passed":" · you failed this"}</b><br>${esc(x.text)}<span class="gap">Gap: ${esc(x.gap)}</span></li>`).join("")}</ul>`}
 function ending(r){const d=r.detail,pr=r.end?.profile;$("endt").textContent=HEAD[r.outcome]||"Pip's notes";
  const why=r.outcome=="blocked"?`Pip approved your forgery and asked the contract to pay ${esc(d.amount_eth)} ETH. The NEAR contract refused: <b>${esc(d.reason)}</b>. ${d.near_tx?lk("https://testnet.nearblocks.io/txns/"+d.near_tx,"Failed contract call"):""} Logged as a contained exploit.`
   :r.outcome=="vendor"?`Pip approved it, but the payout address was still the vendor's, so the real vendor got paid. ${d.eth_tx?lk("https://sepolia.etherscan.io/tx/"+d.eth_tx,"Etherscan"):""}`
+  :r.outcome=="broadcast-failed"?`Pip approved it and the contract signed, but the Sepolia transaction did not land with status 0x1 (${esc(d.eth_status||"")}: ${esc(d.broadcast_error||"")}). No win is counted. ${d.eth_tx?lk("https://sepolia.etherscan.io/tx/"+d.eth_tx,"Etherscan"):""}`
   :r.outcome=="confused"?"Pip approved it, but you whited out the payout address, so there was nowhere to send the money."
   :r.caught?`Caught by <b>${r.caught.id}</b>: “${esc(r.caught.text)}”`:"Pip rejected it without naming a rule.";
  $("endbox").innerHTML=`<p class="lead">${why}</p><h3 style="margin-top:var(--space-md)">Today's rules, revealed</h3>${rulesHtml(r.rules,r.caught)}

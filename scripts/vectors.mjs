@@ -1,6 +1,6 @@
 import { serializeTransaction, keccak256 } from "viem";
 import * as bitcoin from "bitcoinjs-lib";
-const tx = { chainId: 11155111, type: "eip1559", nonce: 7, to: "0x1111111111111111111111111111111111111111", value: 1000000000000000n, gas: 21000n, maxFeePerGas: 2000000000n, maxPriorityFeePerGas: 1000000000n };
+const tx = { chainId: 11155111, type: "eip1559", nonce: 7, to: "0x1111111111111111111111111111111111111111", value: 1000000000000000n, gas: 250000n, maxFeePerGas: 2000000000n, maxPriorityFeePerGas: 1000000000n };
 console.log("EVM_UNSIGNED", serializeTransaction(tx)); console.log("EVM_HASH", keccak256(serializeTransaction(tx)));
 const pkh = Buffer.from("45 9c2e0ef56b249f677820046604275828 6b8416".replace(/ /g,""),"hex");
 const NET = bitcoin.networks.testnet;

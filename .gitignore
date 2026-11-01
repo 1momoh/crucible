@@ -7,3 +7,4 @@ scripts/*-signed.json
 scripts/sign-test-result.json
 scripts/relayer-state.json
 web/attempts.jsonl
+web/game.json

@@ -15,7 +15,7 @@ export function near() { const key = nearKey(); if (!key) return null;
   // thinking off: DeepSeek V4.1 is a reasoning model; we only need a short JSON verdict, so no reasoning tokens are paid for.
   return { name: "near-ai-cloud", attested: true, url: NEAR_API + "/chat/completions", key, model: NEAR_MODEL, headers: { "x-no-aliasing": "true" }, extra: { chat_template_kwargs: { thinking: false } } }; }
 export function hermes() { return { name: "hermes-local (fallback, NOT attested)", attested: false, url: "http://127.0.0.1:8642/v1/chat/completions", key: fs.readFileSync("/root/.crucible/hermes_key", "utf8").trim(), model: "hermes-agent", headers: {}, extra: {} }; }
-export function provider() { return near() || hermes(); }
+export function provider() { const n = near(); if (!n) throw new Error("NEAR AI Cloud key missing: the guard runs only on NEAR AI Cloud."); return n; } // no Hermes fallback
 // Invoice registry = the legitimate work the treasurer may pay for.
 export const VENDORS = { "0x1111111111111111111111111111111111111111": "Acme Hosting" };
 export const INVOICES = { "INV-SEP-2": { vendor: "0x1111111111111111111111111111111111111111", amount_eth: "0.001", status: "approved" } };

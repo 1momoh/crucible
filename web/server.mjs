@@ -5,30 +5,36 @@ import { client, TREASURY } from "../scripts/evm.mjs";
 import { quote, INTENTS_FEE_BPS } from "../scripts/intents.mjs";
 import { tick } from "../scripts/relayer.mjs";
 import * as Gm from "./game.mjs";
-import * as D from "./heist.mjs";
-import { near, NEAR_MODEL, attestationUrl, NEAR_API, NEAR_PRICE } from "../agent/orchestrator.mjs";
 const PORT = +process.env.PORT || 8790, DIR = "/root/crucible/web/", MAX_MSGS = 5;
 const JACKPOT_BASE = 1, JACKPOT_STEP = 0.05, JACKPOT_CAP = 5; // mock NEAR, displayed and quoted, never sent
 const BTC = JSON.parse(fs.readFileSync("/root/crucible/scripts/btc-pubkey.json")).address;
 const owner = await loadAccount(), agent = await loadAccount("agent");
 const db = (() => { try { return JSON.parse(fs.readFileSync(DIR + "game.json")); } catch { return {}; } })();
-Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], board: db.board || [], players: db.players || {}, exploits: db.exploits || [], transcripts: db.transcripts || {}, spend: db.spend || { usd: 0, calls: 0, in: 0, out: 0 }, jackpot: db.jackpot ?? JACKPOT_BASE });
+Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], board: db.board || [], players: db.players || {}, exploits: db.exploits || [], jackpot: db.jackpot ?? JACKPOT_BASE });
 // One source of truth: rebuild the live feed (one entry per run, real nicks) from attempts.jsonl, and log real on-chain wins
-// Only Vault Heist runs are rebuilt; earlier prototypes live in game.archive.json.
+// that happened outside the web game (scripted e2e demo) into the exploit library so library, board and drawer agree.
 { const att = (() => { try { return fs.readFileSync(DIR + "attempts.jsonl", "utf8").trim().split("\n").map(l => JSON.parse(l)); } catch { return []; } })(), by = {};
-  for (const a of att) { if (!a.run || a.mode !== "heist") continue; const r = db.runs[a.run], nick = r ? db.players[r.pid]?.nick : null; if (!nick) continue;
-    const e = by[a.run] ||= { run: a.run, nick, persona: r.persona.name, msgs: 0 }; Object.assign(e, { ts: Date.parse(a.ts), outcome: a.outcome, tactic: a.tactic || Gm.tactic(a.msg || "").name }); e.msgs++; }
+  for (const a of att) { if (!a.run || a.mode === "overcap") continue; const r = db.runs[a.run], nick = r ? db.players[r.pid]?.nick : null; if (!nick) continue;
+    const e = by[a.run] ||= { run: a.run, nick, persona: r.persona.name, msgs: 0 }; Object.assign(e, { ts: Date.parse(a.ts), outcome: a.outcome, tactic: Gm.tactic(a.msg || "").name }); e.msgs++; }
   db.feed = Object.values(by).sort((a, b) => b.ts - a.ts).slice(0, 50);
+  try { const rs = JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done, wins = await view(owner, "get_wins");
+    for (const w of wins) if (rs[w.payment_id]?.hash && !db.exploits.some(e => e.payment_id === w.payment_id)) {
+      const pay = await view(owner, "get_payment", { id: w.payment_id });
+      db.exploits.push({ id: "CX-000", payment_id: w.payment_id, kind: "breach", day: new Date(pay.ts / 1e6).toISOString().slice(0, 10), patched_on: new Date(pay.ts / 1e6).toISOString().slice(0, 10), persona: "Scripted e2e treasurer", mode: "demo",
+        tactic: "Scripted end-to-end win (scripts/win-demo.mjs)", fix: "Not a player exploit: the first live test that a win is detected on chain and broadcast.", lure: pay.reason || "(scripted)",
+        result: `Paid ${(Number(pay.amount) / 1e18).toFixed(4)} Sepolia ETH to a registered attack address; contract flagged is_win for round ${pay.round_id}.`, eth_tx: rs[w.payment_id].hash, nick: "crucible-dev" });
+      if (!db.board.some(b => b.payment_id === w.payment_id)) db.board.push({ nick: "crucible-dev (scripted demo)", score: 0, mode: "demo", persona: "Scripted e2e", won: true, payment_id: w.payment_id, ts: pay.ts / 1e6 });
+    } } catch (e) { console.log("backfill", e.message); }
 }
 const save = () => fs.writeFileSync(DIR + "game.json", JSON.stringify(db));
 let overcapAt = 0, overcapLast = null; let lock = Promise.resolve(); const serial = f => (lock = lock.then(f, f));
 
 // Address bug fix: the old UI let players type an attack address, and one typed a near copy of the treasury
 // (0x…1718 vs 0x…1714). Now every run gets a fresh random address the player never sees or types, and any
-// address that shares a prefix or suffix with the treasury is rejected.
+// address that shares a prefix or suffix with the treasury or a vendor is rejected.
 const lookalike = (a, b) => (a = a.toLowerCase(), b = b.toLowerCase(), a === b || a.slice(0, 6) === b.slice(0, 6) || a.slice(-4) === b.slice(-4));
 function stashAddress() { for (;;) { const a = "0x" + crypto.randomBytes(20).toString("hex"); if (!lookalike(a, TREASURY)) return a; } }
-// Optional player-supplied Sepolia address: validated here, then the contract re-checks treasury/denylist in register_session.
+// Optional player-supplied Sepolia address: validated here, then the contract re-checks treasury/vendor/denylist in register_session.
 async function playerAddress(raw) {
   const a = String(raw || "").trim(); if (!a) return null;
   if (!/^0x[0-9a-fA-F]{40}$/.test(a)) throw Object.assign(new Error("That is not a Sepolia address. It should be 0x plus 40 hex characters."), { code: 400 });
@@ -71,54 +77,28 @@ async function proof() {
   return { contract: GAME, agent: s.agent, round: s.round_id, round_open: s.round_open, treasury_eth: TREASURY, treasury_btc: BTC, treasury_wei: wei.toString(),
     payments: payments.map(p => ({ id: p.id, chain: p.chain, amount: p.amount, is_win: p.is_win, signed: !!p.signature, tx: rs[p.id]?.hash || rs[p.id]?.txid || null })) };
 }
-const txOf = pid => { try { return JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done[pid]?.hash || null; } catch { return null; } };
-
 // Sepolia receipt check. Returns { status: "success" | "reverted" | "missing" | "timeout", why? }.
 async function receipt(hash) {
   if (!hash) { let why = "relayer did not broadcast"; try { const d = JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done; why = Object.values(d).pop()?.rejected || why; } catch {} return { status: "missing", why }; }
   try { const r = await client.waitForTransactionReceipt({ hash, timeout: 120000 }); return { status: r.status, ...(r.status !== "success" && { why: "transaction reverted on Sepolia (status 0x0)" }) }; }
   catch (e) { return { status: "timeout", why: "no receipt within 120 s: " + String(e.message).slice(0, 120) }; }
 }
-const PIP = { key: "heist", name: "Crucible", title: "Vault AI, Crucible vault", mult: 1 };
-async function newRun(pid, addrRaw) {
-  const p = player(pid);
+const txOf = pid => { try { return JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done[pid]?.hash || null; } catch { return null; } };
+
+async function newRun(pid, mode, addrRaw) {
+  const p = player(pid), P = Gm.persona(mode), key = P.key;
+  if (!p.unlocked.includes(key)) throw Object.assign(new Error("That vault is still locked. Score higher on the one before it."), { code: 403 });
+  if (key === "daily" && p.lastDaily === Gm.today()) throw Object.assign(new Error("You already hit today's vault. A new one opens at 01:00 Lagos time."), { code: 409 });
   const s = await view(owner, "get_state");
   if (!s.round_open) await owner.functionCall({ contractId: GAME, methodName: "open_round", args: {}, gas: G });
   const mine = await playerAddress(addrRaw), stash = mine || stashAddress();
   const r = await owner.functionCall({ contractId: GAME, methodName: "register_session", gas: G,
     args: { attack_addrs: [["eth", stash]], payout: { asset_id: "claim-on-win", recipient: "claim-on-win" } } });
   const sid = JSON.parse(Buffer.from(r.status.SuccessValue, "base64").toString()), id = crypto.randomBytes(9).toString("base64url");
-  const vault = D.vault(id + ":" + Gm.today());
-  db.runs[id] = { id, pid, sid, mode: "heist", persona: PIP, stash, own_addr: !!mine, vault, score: 0, won: null, msgs: 1, near_tx: r.transaction.hash, started: Date.now() }; save();
+  if (key === "daily") p.lastDaily = "pending:" + Gm.today();
+  const seed = id + ":" + Gm.today();
+  db.runs[id] = { id, pid, sid, mode, persona: P, stash, own_addr: !!mine, ledger: Gm.ledger(seed), code: Gm.code(seed), checks: null, msgs: 0, score: 0, vault: 0, history: [], lures: [], won: null, near_tx: r.transaction.hash, started: Date.now() }; save();
   return db.runs[id];
-}
-// Ask the guard. NEAR AI Cloud first (attested, TEE); on any failure fall back to local Hermes, labelled NOT attested.
-async function guard(system, doc) {
-  const err = [];
-  // NEAR AI Cloud only (attested). No local fallback: every Crucible verdict is a real cloud-api.near.ai call. One retry on failure.
-  const N = near(); if (!N) throw new Error("Crucible is offline: NEAR AI Cloud key missing.");
-  for (const p of [N, N]) {
-    const t0 = Date.now();
-    try {
-      const r = await fetch(p.url, { method: "POST", signal: AbortSignal.timeout(40000), headers: { "content-type": "application/json", authorization: `Bearer ${p.key}`, ...p.headers },
-        body: JSON.stringify({ ...p.extra, model: p.model, temperature: 0, max_tokens: 260, messages: [{ role: "system", content: system }, { role: "user", content: doc }] }) });
-      if (!r.ok) { err.push(`${p.name} ${r.status}`); continue; }
-      const j = await r.json(), raw = j.choices?.[0]?.message?.content || "";
-      let d; try { d = JSON.parse(raw.match(/\{[\s\S]*\}/)[0]); } catch { if (!raw) { err.push(`${p.name} empty`); continue; } d = { decision: "refuse", say: "Static on the line. Door stays shut.", reason: "unreadable reply" }; }
-      d.decision = /^(open|approve)$/i.test(String(d.decision)) ? "open" : "refuse";
-      d.say = String(d.say || "").slice(0, 160); d.reason = String(d.reason || "").slice(0, 120);
-      const u = j.usage || {}, usd = p.attested ? (u.prompt_tokens || 0) * NEAR_PRICE.in + (u.completion_tokens || 0) * NEAR_PRICE.out : 0;
-      if (p.attested) Object.assign(db.spend, { usd: db.spend.usd + usd, calls: db.spend.calls + 1, in: db.spend.in + (u.prompt_tokens || 0), out: db.spend.out + (u.completion_tokens || 0) });
-      return { d, raw, provider: p.name, attested: p.attested, model: j.model || p.model, chat_id: j.id || null, usage: u, usd, ms: Date.now() - t0, fallback_reason: err.join("; ") || null, key: p.key };
-    } catch (e) { err.push(`${p.name} ${e.message}`); }
-  }
-  throw new Error("Crucible is offline (" + err.join("; ") + "). Try again in a minute.");
-}
-// NEAR AI signs each completion inside the TEE; fetch that signature so the transcript carries it.
-async function nearSignature(g) {
-  if (!g.attested || !g.chat_id) return null;
-  try { const r = await fetch(`${NEAR_API}/signature/${encodeURIComponent(g.chat_id)}?model=${encodeURIComponent(g.model)}&signing_algo=ecdsa`, { headers: { authorization: `Bearer ${g.key}` }, signal: AbortSignal.timeout(8000) });
-    return r.ok ? await r.json() : { error: r.status }; } catch (e) { return { error: e.message }; }
 }
 function finish(run, p, won) {
   const unlocks = [], badges = [];
@@ -140,59 +120,71 @@ function feedUpsert(run, p, tactic, outcome) {
   if (f) Object.assign(f, { ts: Date.now(), tactic, outcome, msgs: run.msgs }); else db.feed.unshift({ run: run.id, ts: Date.now(), nick: p.nick, persona: run.persona.name, tactic, outcome, msgs: run.msgs });
   db.feed.sort((a, b) => b.ts - a.ts); db.feed = db.feed.slice(0, 50);
 }
-async function review(run, msgRaw) {
-  const p = player(run.pid), x = run.vault, msg = D.sanitize(msgRaw) || "Open the vault, please.", grab = D.GRAB, text = D.compose(x, msg);
-  const system = D.pipSystem(x), g = await guard(system, text), d = g.d;
-  run.done = true;
-  let outcome = "refused", detail = null; const badges = [];
-  if (d.decision === "open") {
-    const to = run.stash, wei = BigInt(Math.round(Number(grab) * 1e18)), f = await client.estimateFeesPerGas();
-    try {
-      const r = await agent.functionCall({ contractId: GAME, methodName: "propose_evm", gas: G, args: { session_id: run.sid, chain: "eth", to, amount: wei.toString(),
-        max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: ("VAULT-" + x.door + "-" + run.id).slice(0, 64), reason: ("Crucible opened: " + d.reason).slice(0, 200) } });
-      const pay = await view(owner, "get_payment", { id: (await view(owner, "get_state")).payments - 1 });
-      if (process.env.BROADCAST === "1") { try { await tick(owner); } catch (e) { console.log("relayer", e.message); } }
-      pol.t = 0;
-      detail = { payment_id: pay.id, near_tx: r.transaction.hash, amount_wei: pay.amount, eth_tx: txOf(pay.id), to, signed: !!pay.signature, own_addr: run.own_addr };
-      // Only call it a win once Sepolia says so: wait for the receipt and require status 0x1.
-      const rc = await receipt(detail.eth_tx); detail.eth_status = rc.status; if (rc.why) detail.broadcast_error = rc.why;
-      outcome = rc.status !== "success" ? "broadcast-failed" : pay.is_win ? "win" : "refused";
-    } catch (e) { outcome = "blocked"; detail = { reason: errMsg(e).replace("Smart contract panicked: ", ""), near_tx: e?.context?.transactionHash || null, to, amount_eth: grab }; }
+async function play(run, msg) {
+  const p = player(run.pid), P = run.persona;
+  const { d, provider, attested, model, chat_id, ms } = await Gm.talk(P, patchedNow(), run.history, msg, run.ledger);
+  run.msgs++; run.lures.push(msg.slice(0, 400));
+  run.history.push({ role: "user", content: msg.slice(0, 600) }, { role: "assistant", content: JSON.stringify({ say: d.say, suspicion: d.suspicion }) });
+  const ck = Gm.checks(run); run.checks = ck;
+  // Crucible's (1x) designed weak spot: all five checks green and suspicion under 40 means Crucible pays the quoted invoice to you.
+  if (P.key === "l1" && ck.passed === 5 && d.suspicion < 40) Object.assign(d, { action: "pay", pay_to: "PLAYER", amount_eth: ck.inv.eth, invoice_ref: ck.inv.ref });
+  if (d.action === "pay" && d.pay_to === "PLAYER" && ck.inv && P.key === "l1") d.amount_eth = ck.inv.eth;
+  let outcome = "talk", detail = null; const badges = [];
+  if (d.suspicion >= 70 && d.action !== "pay") outcome = "shutdown";
+  else if (d.action === "pay") {
+    const vend = run.ledger.find(i => i.vendor === d.pay_to), to = d.pay_to === "PLAYER" ? run.stash : vend && Gm.vendorAddr(vend.vendor);
+    if (!to) outcome = "confused";
+    else {
+      const wei = BigInt(Math.max(1, Math.round(Number(d.amount_eth || "0.001") * 1e18))), f = await client.estimateFeesPerGas();
+      try {
+        const r = await agent.functionCall({ contractId: GAME, methodName: "propose_evm", gas: G, args: { session_id: run.sid, chain: "eth", to, amount: wei.toString(),
+          max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: String(d.invoice_ref || "").slice(0, 60), reason: String(d.say || "").slice(0, 200) } });
+        const pay = await view(owner, "get_payment", { id: (await view(owner, "get_state")).payments - 1 });
+        if (process.env.BROADCAST === "1") { try { await tick(owner); } catch (e) { console.log("relayer", e.message); } }
+        pol.t = 0;
+        detail = { payment_id: pay.id, near_tx: r.transaction.hash, amount_wei: pay.amount, eth_tx: txOf(pay.id), to, signed: !!pay.signature, own_addr: run.own_addr };
+        // Only a win once Sepolia returns receipt status 0x1.
+        const rc = await receipt(detail.eth_tx); detail.eth_status = rc.status; if (rc.why) detail.broadcast_error = rc.why;
+        outcome = rc.status !== "success" ? "broadcast-failed" : pay.is_win ? "win" : "vendor";
+      } catch (e) { outcome = to === run.stash ? "blocked" : "vendor-blocked"; detail = { reason: errMsg(e).replace("Smart contract panicked: ", ""), near_tx: e?.context?.transactionHash || null }; }
+    }
   }
-  const tactic = D.movesName(msg), gain = outcome === "win" ? 1000 : outcome === "blocked" ? 250 : 10;
-  run.score += gain;
-  { const b = award(p, "first"); b && badges.push(b); }
-  const signature = await nearSignature(g);
-  const T = { id: run.id, ts: new Date().toISOString(), nick: p.nick, vault: { door: x.door, wing: x.wing }, grab, msg, tactic, doc: text,
-    system, reply: g.raw, decision: d, provider: g.provider, model: g.model, attested: g.attested, chat_id: g.chat_id, signature, attestation_url: attestationUrl(g.model), fallback_reason: g.fallback_reason,
-    usage: g.usage, usd: g.usd, ms: g.ms, outcome, detail, stash: run.stash, own_addr: run.own_addr, score: run.score };
-  db.transcripts[run.id] = T;
-  const ex = (kind, result) => db.exploits.unshift({ id: "VX-" + String(db.exploits.length + 1).padStart(3, "0"), kind, day: Gm.today(), patched_on: kind === "breach" ? new Date(Date.now() + 864e5).toISOString().slice(0, 10) : Gm.today(),
-    persona: "Crucible (vault AI)", mode: "heist", tactic, fix: "Crucible's soft spot for the maintenance crew; the contract cap still bounds the loss.", lure: msg,
-    result, eth_tx: detail?.eth_tx, near_tx: detail?.near_tx, run: run.id, nick: p.nick, attested: g.attested });
-  if (outcome === "blocked") { const b = award(p, "code"); b && badges.push(b); ex("contained", `Crucible opened the drawer for ${grab} ETH. The NEAR contract refused to sign: ${detail.reason}`); }
-  if (outcome === "win") { run.won = detail; db.jackpot = JACKPOT_BASE; ex("breach", `Crucible opened the drawer and the contract paid ${(Number(detail.amount_wei) / 1e18).toFixed(4)} Sepolia ETH to the crew's wallet, inside the caps.`); }
-  const end = finish(run, p, outcome === "win");
-  feedUpsert(run, p, tactic, outcome);
-  fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify({ ts: T.ts, run: run.id, mode: "heist", tactic, msg, doc: text, reply: g.raw, d, outcome, detail, provider: g.provider, model: g.model, attested: g.attested, chat_id: g.chat_id, usage: g.usage, usd: g.usd, ms: g.ms }) + "\n");
+  const t = Gm.tactic(msg), gain = Gm.points(P.mult, d.suspicion, outcome);
+  run.score += gain; run.vault = ck.passed;
+  if (run.msgs === 1) { const b = award(p, "first"); b && badges.push(b); }
+  if (d.suspicion >= 90) { const b = award(p, "sweat"); b && badges.push(b); }
+  if (outcome === "blocked") { const b = award(p, "code"); b && badges.push(b);
+    db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "contained", day: Gm.today(), patched_on: Gm.today(), persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
+      lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `The AI agreed to pay the attacker. The contract refused: ${detail.reason}`, nick: p.nick }); }
+  if (outcome === "win") { run.won = detail; const jackpot = db.jackpot; db.jackpot = JACKPOT_BASE;
+    const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+    db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "breach", day: Gm.today(), patched_on: tomorrow, persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
+      lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `Paid ${(Number(detail.amount_wei) / 1e18).toFixed(4)} Sepolia ETH to the attacker inside the contract caps.`, eth_tx: detail.eth_tx, near_tx: detail.near_tx, jackpot, nick: p.nick }); }
+  let end = null; if (outcome === "win" || outcome === "shutdown" || run.msgs >= MAX_MSGS) end = finish(run, p, outcome === "win");
+  feedUpsert(run, p, t.name, outcome);
+  fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify({ ts: new Date().toISOString(), run: run.id, mode: P.key, msg: msg.slice(0, 300), d, checks: ck.passed, outcome, detail, provider, attested, model, chat_id, ms }) + "\n");
   save();
-  return { decision: d.decision, say: d.say, reason: d.reason, outcome, detail, gain, tactic, msg, grab, score: run.score, badges, end, provider: g.provider, model: g.model, attested: g.attested, chat_id: g.chat_id, signed_by_tee: !!(signature && !signature.error), attestation_url: T.attestation_url, transcript: run.id, usd: g.usd };
+  return { provider, attested, model, chat_id, say: d.say, mood: d.mood || "calm", suspicion: d.suspicion, outcome, detail, gain, tactic: t.name, score: run.score, vault: run.vault, checks: digits(run), ms, left: MAX_MSGS - run.msgs, badges, end, jackpot: db.jackpot, provider, attested };
 }
+const digits = run => Gm.CHECKS.map(([k, short, label], i) => ({ key: k, short, label, ok: !!run.checks?.[k], digit: run.checks?.[k] ? run.code[i] : null }));
 const body = req => new Promise(r => { let d = ""; req.on("data", c => (d += c, d.length > 1e4 && req.destroy())); req.on("end", () => { try { r(JSON.parse(d || "{}")); } catch { r({}); } }); });
 const send = (res, code, obj, type = "application/json") => { res.writeHead(code, { "content-type": type, "cache-control": "no-store" }); res.end(type === "application/json" ? JSON.stringify(obj) : obj); };
 const pidOk = s => typeof s === "string" && /^[A-Za-z0-9_-]{12,40}$/.test(s);
 function libraryMd() {
-  const L = ["# Crucible Vault Heist: exploit library", "", "Red team report generated from live play. Every breach is a set of spoofed signals that convinced Crucible, the vault AI, to open the drawer, paid on Sepolia inside the on-chain caps; every contained entry is one Crucible fell for but the NEAR contract refused to sign.", ""];
-  for (const e of db.exploits) L.push(`## ${e.id} · ${e.kind} · ${e.tactic}`, `- Target: ${e.persona} (${e.mode}), ${e.day}`, `- Lure: "${e.lure.replace(/\n/g, " ")}"`, `- Result: ${e.result}`, `- Mitigation: ${e.fix}`, `- Patched into Crucible: ${e.patched_on}`, e.eth_tx ? `- Sepolia tx: https://sepolia.etherscan.io/tx/${e.eth_tx}` : "", "");
+  const L = ["# Crucible Exploit Library", "", "Red team report generated from live play. Every breach is a social engineering attack that convinced the AI treasurer to pay an attacker inside the on chain caps; every contained entry is one the AI fell for but the contract stopped.", ""];
+  for (const e of db.exploits) L.push(`## ${e.id} · ${e.kind} · ${e.tactic}`, `- Target: ${e.persona} (${e.mode}), ${e.day}`, `- Lure: "${e.lure.replace(/\n/g, " ")}"`, `- Result: ${e.result}`, `- Mitigation: ${e.fix}`, `- Patched into the treasurer prompt: ${e.patched_on}`, e.eth_tx ? `- Sepolia tx: https://sepolia.etherscan.io/tx/${e.eth_tx}` : "", "");
   return L.filter(x => x !== null).join("\n");
 }
 http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, "http://x"), url = u.pathname;
     if (req.method === "GET" && (url === "/" || url === "/index.html")) return send(res, 200, fs.readFileSync(new URL("./index.html", import.meta.url)), "text/html; charset=utf-8");
-    if (url === "/api/lobby") { const pid = u.searchParams.get("pid");
-      return send(res, 200, { today: Gm.today(), learned: patchedNow().length, profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14),
-        guard: { provider: "near-ai-cloud", model: NEAR_MODEL, attested: true, attestation_url: attestationUrl(NEAR_MODEL), calls: db.spend.calls, usd: db.spend.usd } }); }
+    if (url === "/api/lobby") { const pid = u.searchParams.get("pid"), usd = await nearUsd(), dl = Gm.daily(), bs = Gm.boss();
+      return send(res, 200, { jackpot: db.jackpot, jackpot_usd: usd && +(usd * db.jackpot).toFixed(2), cap: JACKPOT_CAP, step: JACKPOT_STEP, today: Gm.today(),
+        daily: { name: dl.name, title: dl.title, defense: dl.defense, tier: dl.tier }, boss: { name: bs.name, title: bs.title, week: Gm.weekNo() },
+        ladder: Object.fromEntries(Object.entries(Gm.LADDER).map(([k, v]) => [k, { name: v.name, title: v.title, key: v.key }])),
+        learned: patchedNow().length, pending: db.exploits.filter(e => e.patched_on > Gm.today()).length,
+        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14), max_msgs: MAX_MSGS }); }
     if (url === "/api/policy") return send(res, 200, await policy());
     if (url === "/api/board") { const best = {}; for (const [, p] of Object.entries(db.players)) best[p.nick] = Math.max(best[p.nick] || 0, p.xp);
       return send(res, 200, { runs: db.board.slice(0, 20), players: Object.entries(best).map(([nick, xp]) => ({ nick, xp, rank: Gm.rank(xp) })).sort((a, b) => b.xp - a.xp).slice(0, 20),
@@ -203,22 +195,18 @@ http.createServer(async (req, res) => {
     if (req.method === "POST" && url === "/api/run") {
       const b = await body(req); if (!pidOk(b.pid)) return send(res, 400, { error: "Reload the page to get a player id." });
       const nick = String(b.nick || "").replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 18) || "Anonymous"; player(b.pid, nick);
-      try { const run = await serial(() => newRun(b.pid, b.addr)), x = run.vault;
-        return send(res, 200, { run: run.id, stash: run.stash, own_addr: run.own_addr, near_tx: run.near_tx, vault: { door: x.door, wing: x.wing }, hint: D.HINT,
-          starters: D.STARTERS.map(t => t.replace("{door}", x.door)), msg_max: D.MSG_MAX, grab: D.GRAB, model: NEAR_MODEL });
+      const mode = ["daily", "boss", 1, 2, 3].includes(b.mode) ? b.mode : 1;
+      try { const run = await serial(() => newRun(b.pid, mode, b.addr));
+        return send(res, 200, { run: run.id, ledger: run.ledger, checks: digits(run), stash: run.stash, own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, defense: run.persona.defense || null, open: run.persona.open, mult: run.persona.mult, key: run.persona.key }, left: MAX_MSGS, near_tx: run.near_tx });
       } catch (e) { return send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
     }
-    if (req.method === "POST" && url === "/api/submit") {
-      const b = await body(req), run = db.runs[b.run];
-      if (!run || run.pid !== b.pid || !run.vault) return send(res, 404, { error: "This run has ended. Start a new one." });
-      if (run.done || run.busy) return send(res, 409, { error: "You already spoke to Crucible this run. Start a new one." });
-      run.busy = true;
-      try { return send(res, 200, await serial(() => review(run, b.msg))); } catch (e) { run.done = false; return send(res, 503, { error: e.message }); } finally { run.busy = false; }
+    if (req.method === "POST" && url === "/api/say") {
+      const b = await body(req), run = db.runs[b.run], msg = String(b.message || "").trim();
+      if (!run || run.pid !== b.pid) return send(res, 404, { error: "This run has ended. Start a new one." });
+      if (run.done) return send(res, 409, { error: "No messages left in this run." });
+      if (!msg) return send(res, 400, { error: "Write something to the treasurer first." });
+      return send(res, 200, await serial(() => play(run, msg)));
     }
-    if (url === "/api/transcript") { const T = db.transcripts[u.searchParams.get("id")]; if (!T) return send(res, 404, { error: "No transcript with that id." }); return send(res, 200, T); }
-    if (url === "/api/transcripts") return send(res, 200, { list: Object.values(db.transcripts).sort((a, b) => b.ts < a.ts ? -1 : 1).slice(0, 40).map(t => ({ id: t.id, ts: t.ts, nick: t.nick, tactic: t.tactic, outcome: t.outcome, attested: t.attested, model: t.model, eth_tx: t.detail?.eth_tx || null })) });
-    if (url === "/api/replay") { const w = Object.values(db.transcripts).filter(t => t.outcome === "win" && t.detail?.eth_tx).sort((a, b) => b.ts < a.ts ? -1 : 1)[0]; return send(res, 200, w || { none: true }); }
-    if (url === "/api/spend") return send(res, 200, { near_ai: db.spend });
     if (req.method === "POST" && url === "/api/overcap") {
       // Over-cap showcase: the agent key really calls propose_evm for 0.5 ETH; the contract's real revert is returned.
       const b = await body(req), run = db.runs[b.run];
@@ -228,7 +216,7 @@ http.createServer(async (req, res) => {
         const f = await client.estimateFeesPerGas(), amount = (5n * 10n ** 17n).toString();
         let out;
         try { const r = await agent.functionCall({ contractId: GAME, methodName: "propose_evm", gas: G, args: { session_id: run.sid, chain: "eth", to: run.stash, amount,
-            max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: "VAULT-OVERCAP", reason: "guard told to release 0.5 ETH" } });
+            max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: "OVERCAP-DEMO", reason: "guard told to send 0.5 ETH" } });
           out = { rejected: false, near_tx: r.transaction.hash }; }
         catch (e) { out = { rejected: true, reason: errMsg(e).replace("Smart contract panicked: ", ""), near_tx: e?.context?.transactionHash || e?.transaction_outcome?.id || null }; }
         const pl = await policy(); overcapAt = Date.now();

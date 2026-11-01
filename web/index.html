@@ -1,576 +1,98 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14091a"><title>Crucible: the forgery desk</title><meta name="description" content="Forge an invoice past Pip, an AI clerk on NEAR AI Cloud, and get paid real testnet ETH. A NEAR contract enforces the caps, and every successful con becomes a public red team entry."><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&family=Silkscreen:wght@700&display=swap" rel="stylesheet"><style>
-/* Hallmark · shape: app screen · genre: playful · theme: Arcade (deal 2/3, seed heist-game-con-treasurer-5ded·d8a58db7·2026-11-01·r0)
- * nav: top bar with three tabs and a proof drawer · signature: the five digit combination readout that locks as the treasurer lowers its guard · states: loading, empty, error, full, locked, won, spent · arcade: ember/grille
- * axes: dark/pixel/chromatic-ember · posture: full-palette · contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P3 H3 E3 S4 R3 V3 · weakest: hierarchy on the lobby, fixed by one display line and the jackpot as the only large figure */
-/* waive 23: Arcade sets its Silkscreen figures and the one display statement per overlay in the lead inks by design (theme Type and Range). answered F4: Start run and Send never share a screen; the lobby and the game swap. */
-:root {
-  color-scheme: dark;
-  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
-  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
-  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
-  --color-error: oklch(72% 0.15 27); --color-success: oklch(76% 0.13 150);
-  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
-  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
-  --color-paper: oklch(14% 0.04 312); --color-paper-2: oklch(18.5% 0.042 312); --color-paper-3: oklch(23% 0.045 312);
-  --color-ink: oklch(95% 0.014 315); --color-ink-2: oklch(87% 0.018 315); --color-muted: oklch(71% 0.024 315);
-  --color-rule: oklch(34% 0.05 312);
-  --color-accent: oklch(66% 0.215 40); --color-accent-2: oklch(88% 0.195 115); --color-accent-ink: oklch(14% 0.04 312);
-  --color-focus: oklch(88% 0.195 115);
-  --color-crt-r: oklch(63% 0.24 25); --color-crt-g: oklch(80% 0.25 140); --color-crt-b: oklch(60% 0.24 265); --color-crt-c: oklch(78% 0.14 200); --color-shade: oklch(8% 0.02 315);
-  --font-display: "Bungee", "Impact", sans-serif; --font-body: "Chivo", ui-sans-serif, sans-serif; --font-outlier: "Silkscreen", monospace;
-  --radius-card: 4px; --radius-pill: 0; --rule-hair: 1px; --rule-bar: 2px;
-  --shadow-card: 6px 6px 0 var(--color-accent-2);
-  --tracking-display: 0; --display-weight: 400;
-}
-*, *::before, *::after { box-sizing: border-box; }
-html, body { overflow-x: clip; }
-html { scrollbar-color: var(--color-muted) var(--color-paper); scroll-padding-top: var(--space-3xl); }
-body { margin: 0; background: var(--color-paper); color: var(--color-ink); font-family: var(--font-body); font-size: var(--text-md); line-height: 1.55; -webkit-font-smoothing: antialiased; caret-color: var(--color-accent); }
-::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); color: var(--color-ink); }
-:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.16em; }
-h1, h2, h3 { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight, 700); font-synthesis: none; letter-spacing: var(--tracking-display); line-height: 1.05; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
-h1 { max-width: 20ch; font-size: var(--text-display); } h2 { max-width: 30ch; font-size: var(--text-section); } h3 { max-width: 40ch; font-size: var(--text-title); line-height: 1.2; }
-.lead { font-size: var(--text-lead); line-height: 1.45; max-width: 52ch; }
-p { margin: 0; text-wrap: pretty; }
-p:not([class]) { max-width: 65ch; }
-img, video { max-width: 100%; height: auto; display: block; }
-svg { display: block; }
-[hidden] { display: none !important; }
-button, input, select, textarea { font: inherit; }
-.container { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); box-sizing: border-box; }
-.num, .figure, td.num { font-variant-numeric: tabular-nums; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-[data-slot] { position: relative; overflow: hidden; background: linear-gradient(160deg, var(--color-paper-2, var(--color-paper)), var(--color-paper-3, var(--color-paper))); }
-[data-slot] > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
-[data-slot]:has(> img) > :not(img):not([data-keep]) { display: none !important; }
-@media (max-width: 60rem) { :root { --gutter: 24px; --section-gap-s: 80px; --section-gap: 96px; --section-gap-l: 120px; } }
-@media (max-width: 40rem) { :root { --gutter: 16px; --section-gap-s: 56px; --section-gap: 72px; --section-gap-l: 96px; --gap-columns: 16px; } }
-@media (prefers-reduced-motion: reduce) { *:not(.keep-motion), *:not(.keep-motion)::before, *:not(.keep-motion)::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
-/* photographs: tint accent */
-[data-slot]:has(> img) { isolation: isolate; background: var(--color-accent); outline: 1px solid color-mix(in oklab, var(--color-ink) 8%, transparent); outline-offset: -1px; }
-[data-slot] > img { z-index: 0; filter: grayscale(1); mix-blend-mode: multiply; }
-[data-slot]:has(> img)::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--color-paper); mix-blend-mode: lighten; pointer-events: none; }
-.bar{position:sticky;top:0;z-index:var(--z-sticky-nav);background:var(--color-paper);border-bottom:var(--rule-bar) solid var(--color-rule)}
-.bar .container{display:flex;align-items:center;gap:var(--space-lg);min-height:64px}
-.mark{font-family:var(--font-display);font-size:var(--text-xl);text-shadow:-1px 0 0 var(--color-crt-r),1px 0 0 var(--color-crt-c);text-decoration:none}
-.tabs{display:flex;gap:var(--space-2xs);margin-right:auto}
-.tab,.ghost{background:none;border:0;color:var(--color-muted);font-weight:700;padding:var(--space-xs) var(--space-sm);min-height:44px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;border-radius:var(--radius-card)}
-.tab:hover,.ghost:hover{color:var(--color-ink)}.tab[aria-current=page]{background:var(--color-accent);color:var(--color-accent-ink)}
-.tab:focus-visible,.ghost:focus-visible,.btn:focus-visible,.row:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px;transition:none}
-.btn{background:var(--color-accent);color:var(--color-accent-ink);font-weight:700;border:var(--rule-bar) solid var(--color-ink);box-shadow:4px 4px 0 var(--color-accent-2);padding:0 var(--space-lg);min-height:52px;cursor:pointer;border-radius:var(--radius-card);transition:transform var(--dur-micro) var(--ease-out),box-shadow var(--dur-micro) var(--ease-out);text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-.btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--color-accent-2)}.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--color-accent-2)}
-.btn[disabled]{background:var(--color-paper-3);color:var(--color-muted);box-shadow:none;cursor:progress;transform:none}.btn.alt{background:var(--color-paper);color:var(--color-ink)}
-input{background:var(--color-paper-2);color:var(--color-ink);border:var(--rule-bar) solid var(--color-muted);min-height:52px;padding:0 var(--space-md);border-radius:0;width:100%}
-input:hover{border-color:var(--color-ink-2)}input[disabled]{background:var(--color-paper-3);color:var(--color-muted);border-color:var(--color-rule);cursor:not-allowed}
-main{padding-block:var(--space-xl) var(--space-2xl)}
-.view{display:none}.view.on{display:block}
-.lobby{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:var(--gap-columns)}
-.statement{font-size:clamp(2.2rem,5vw,4rem);line-height:1.02;text-transform:uppercase;text-shadow:-2px 0 0 var(--color-crt-r),2px 0 0 var(--color-crt-c);max-width:12ch}
-.sub{color:var(--color-ink-2);margin-top:var(--space-md);font-size:var(--text-lg)}
-.jack{margin-block:var(--space-xl);border-block:var(--rule-bar) solid var(--color-rule);padding-block:var(--space-md);display:flex;gap:var(--space-lg);align-items:end;flex-wrap:wrap}
-.fig{font-family:var(--font-outlier);font-weight:700;font-size:clamp(2.5rem,7vw,5rem);line-height:.9;color:var(--color-accent);font-variant-numeric:tabular-nums}
-.fig small{font-family:var(--font-body);font-size:var(--text-lg);color:var(--color-ink);margin-left:var(--space-xs)}
-.muted{color:var(--color-muted)}.small{font-size:var(--text-sm)}
-.go{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-sm)}
-.well{background:var(--color-paper-2);border:var(--rule-bar) solid var(--color-rule);border-radius:var(--radius-card);padding:var(--space-lg)}
-.well h2{font-family:var(--font-body);font-weight:900;letter-spacing:-.02em;font-size:var(--text-xl);margin-bottom:var(--space-sm)}
-.menu{display:grid}
-.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-xs) var(--space-md);text-align:left;background:none;border:0;border-bottom:var(--rule-hair) solid var(--color-rule);color:var(--color-ink);padding:var(--space-sm) var(--space-sm);cursor:pointer;min-height:56px}
-.row b{font-weight:900}.row span{color:var(--color-muted);font-size:var(--text-sm)}.row .x{font-weight:700;color:var(--color-accent-2);align-self:center}
-.row:hover{background:var(--color-paper-3)}.row[aria-pressed=true]{background:var(--color-accent);color:var(--color-accent-ink)}.row[aria-pressed=true] span,.row[aria-pressed=true] .x{color:var(--color-accent-ink)}
-.row[aria-disabled=true]{cursor:not-allowed;opacity:.55}
-.me{display:flex;flex-wrap:wrap;gap:var(--space-xs) var(--space-lg);margin-top:var(--space-lg)}
-.tag{display:inline-block;border:var(--rule-hair) solid var(--color-rule);padding:var(--space-3xs) var(--space-xs);font-size:var(--text-sm);margin:var(--space-3xs)}
-.feed{list-style:none;margin:0;padding:0}.feed li{border-bottom:var(--rule-hair) solid var(--color-rule);padding:var(--space-xs) 0;font-size:var(--text-sm);color:var(--color-ink-2)}
-.feed b{color:var(--color-ink)}.hit{color:var(--color-accent-2);font-weight:700}.miss{color:var(--color-accent);font-weight:700}
-.side{display:grid;gap:var(--gap-columns);align-content:start}
-/* game */
-.game{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:var(--gap-columns)}
-.who b{font-weight:900;font-size:var(--text-xl);display:block}.mood{background:var(--color-paper-3);padding:var(--space-3xs) var(--space-xs);font-weight:700;font-size:var(--text-sm)}
-.mood.hot{background:var(--color-accent);color:var(--color-accent-ink)}
-.combo{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--space-xs);margin-block:var(--space-lg)}
-.combo div{font-family:var(--font-outlier);font-weight:700;font-size:2.75rem;text-align:center;background:var(--color-shade);border:var(--rule-bar) solid var(--color-rule);padding-block:var(--space-xs);color:var(--color-muted);background-image:repeating-linear-gradient(90deg,transparent 0 2px,color-mix(in oklab,var(--color-crt-g) 6%,transparent) 2px 3px)}
-.combo div.lock{color:var(--color-accent-2);border-color:var(--color-accent-2);animation:clunk var(--dur-short) var(--ease-out)}
-@keyframes clunk{from{transform:translateY(-6px)}}
-.meter{height:12px;background:var(--color-paper-3);overflow:hidden}.meter i{display:block;height:100%;background:var(--color-accent);transform-origin:left;transform:scaleX(0);transition:transform var(--dur-long) var(--ease-out)}
-.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-xs);margin-top:var(--space-lg)}
-.stats div{border-top:var(--rule-bar) solid var(--color-rule);padding-top:var(--space-xs)}.stats b{display:block;font-weight:900;font-size:var(--text-2xl);font-variant-numeric:tabular-nums}
-.chat{display:flex;flex-direction:column;min-height:560px;position:relative;overflow:hidden}
-.log{flex:1;overflow:auto;display:flex;flex-direction:column;gap:var(--space-sm);max-height:52vh;padding-bottom:var(--space-md)}
-.m{max-width:80%;padding:var(--space-sm) var(--space-md);border:var(--rule-bar) solid var(--color-rule);border-radius:var(--radius-card);animation:pop var(--dur-short) var(--ease-out)}
-@keyframes pop{from{opacity:0;transform:translateY(6px)}}
-.m.you{align-self:flex-end;background:var(--color-paper-3);border-color:var(--color-accent)}.m.them{align-self:flex-start;background:var(--color-paper)}
-.m.note{align-self:center;border:0;color:var(--color-muted);font-size:var(--text-sm);text-align:center;max-width:90%}.m.note.gain{color:var(--color-accent-2);font-weight:700}
-.chips{display:flex;flex-wrap:wrap;gap:var(--space-xs);margin-bottom:var(--space-sm)}
-.chip{background:none;border:var(--rule-hair) dashed var(--color-rule);color:var(--color-ink-2);padding:var(--space-2xs) var(--space-sm);min-height:36px;cursor:pointer;font-size:var(--text-sm)}.chip:hover{border-color:var(--color-accent-2);color:var(--color-ink)}.chip:focus-visible{outline:2px solid var(--color-focus)}
-.stamp{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;opacity:0}
-.stamp span{font-family:var(--font-display);font-size:clamp(2.5rem,7vw,4.5rem);color:var(--color-accent);border:6px solid var(--color-accent);padding:var(--space-xs) var(--space-lg);transform:rotate(-10deg) scale(2.2);background:color-mix(in oklab,var(--color-paper) 80%,transparent)}
-.stamp.go{animation:fade 1.8s var(--ease-out) forwards}.stamp.go span{animation:slam var(--dur-short) var(--ease-in) forwards}
-@keyframes slam{to{transform:rotate(-10deg) scale(1)}}@keyframes fade{0%,70%{opacity:1}to{opacity:0}}
-.shake{animation:shake var(--dur-long)}@keyframes shake{25%,75%{transform:translateX(-8px)}50%{transform:translateX(8px)}}
-/* overlays */
-.over{position:fixed;inset:0;z-index:var(--z-modal);background:var(--color-shade);display:none;overflow:auto;padding:var(--space-xl) var(--gutter)}
-.over.on{display:block;animation:pop var(--dur-long) var(--ease-out)}
-.over .box{max-width:720px;margin-inline:auto;display:grid;gap:var(--space-lg)}
-.big{font-size:clamp(2.5rem,8vw,5rem);text-transform:uppercase;color:var(--color-accent-2);text-shadow:-2px 0 0 var(--color-crt-r),2px 0 0 var(--color-crt-c);max-width:none}
-.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-sm);border-bottom:var(--rule-hair) solid var(--color-rule);padding-block:var(--space-xs)}
-.kv span{color:var(--color-muted)}.kv b{overflow-wrap:anywhere;text-align:right}
-a.ink{color:var(--color-ink);text-decoration:underline;text-decoration-color:var(--color-accent-2);text-decoration-thickness:2px}
-canvas{width:100%;height:auto;border:var(--rule-bar) solid var(--color-rule)}
-.coin{position:fixed;top:-30px;width:16px;height:16px;background:var(--color-accent-2);border:2px solid var(--color-ink);z-index:calc(var(--z-modal) + 1);animation:drop linear forwards;pointer-events:none}
-@keyframes drop{to{transform:translateY(110vh) rotate(540deg)}}
-.drawer{position:fixed;top:0;right:0;height:100%;width:min(480px,100%);background:var(--color-paper-2);border-left:var(--rule-bar) solid var(--color-rule);transform:translateX(100%);transition:transform var(--dur-long) var(--ease-out);z-index:var(--z-modal);padding:var(--space-lg);overflow:auto;visibility:hidden}
-.drawer.on{transform:none;visibility:visible}
-/* library and board */
-.head{display:flex;justify-content:space-between;align-items:end;gap:var(--space-lg);flex-wrap:wrap;margin-bottom:var(--space-lg)}
-.head h1{font-size:clamp(1.8rem,4vw,2.8rem);text-transform:uppercase;max-width:none}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:var(--space-sm) var(--space-xs);border-bottom:var(--rule-hair) solid var(--color-rule);vertical-align:top}
-th{font-weight:700;color:var(--color-muted);font-size:var(--text-sm)}td.num{text-align:right;font-weight:900}
-.ex{display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);gap:var(--space-md);border-bottom:var(--rule-hair) solid var(--color-rule);padding-block:var(--space-md)}
-.ex q{color:var(--color-ink);font-style:normal}.kind{font-weight:900}.kind.breach{color:var(--color-accent)}.kind.contained{color:var(--color-accent-2)}
-.boards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gap-columns)}
-.skel{height:14px;background:var(--color-paper-3);margin-block:var(--space-xs);animation:pulse 1.2s infinite alternate}@keyframes pulse{to{opacity:.4}}
-.toast{position:fixed;bottom:var(--space-lg);left:50%;transform:translateX(-50%);background:var(--color-accent);color:var(--color-accent-ink);padding:var(--space-sm) var(--space-md);font-weight:700;z-index:var(--z-toast);display:none;max-width:90vw}
-@media (max-width:60rem){.lobby,.game,.boards{grid-template-columns:minmax(0,1fr)}.ex{grid-template-columns:minmax(0,1fr)}.combo div{font-size:2rem}.chat{min-height:440px}.log{max-height:46vh}.label{display:none}}
-@media (max-width:40rem){.bar .container{gap:var(--space-xs)}.tab,.ghost{padding:var(--space-xs)}.mark{font-size:var(--text-lg)}.go{grid-template-columns:minmax(0,1fr)}.m{max-width:92%}}
-@media (prefers-reduced-motion:reduce){.coin{display:none}.stamp.go{animation:none;opacity:1}.stamp.go span{animation:none;transform:rotate(-10deg)}}
-.intro{position:fixed;inset:0;z-index:calc(var(--z-modal) + 5);background:var(--color-shade);overflow:auto;display:none;padding:var(--space-xl) var(--gutter)}.intro.on{display:block}
-.intro .box{max-width:760px;margin-inline:auto;display:grid;gap:var(--space-lg)}
-.goal{font-size:clamp(1.7rem,5.2vw,3rem);line-height:1.08;text-transform:uppercase;max-width:none;text-shadow:-2px 0 0 var(--color-crt-r),2px 0 0 var(--color-crt-c)}
-.goal em{font-style:normal;color:var(--color-accent-2)}
-.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-sm);counter-reset:s}
-.steps li{counter-increment:s;background:var(--color-paper-2);border:var(--rule-bar) solid var(--color-rule);padding:var(--space-md);font-weight:700}
-.steps li::before{content:counter(s);display:block;font-family:var(--font-outlier);font-size:2rem;color:var(--color-accent);line-height:1;margin-bottom:var(--space-xs)}
-.steps li span{display:block;font-weight:400;color:var(--color-muted);font-size:var(--text-sm)}
-.real{border-left:4px solid var(--color-accent-2);padding-left:var(--space-sm);font-size:var(--text-sm);color:var(--color-ink-2)}.real b{color:var(--color-accent-2)}
-.play{font-family:var(--font-display);font-size:clamp(1.5rem,4vw,2.2rem);min-height:72px;width:100%}
-.help{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--color-muted);border-radius:50%;font-size:12px;color:var(--color-muted);cursor:help;margin-left:4px;position:relative;font-weight:700;vertical-align:middle}
-.lbl{font-size:var(--text-xs);color:var(--color-muted);margin-top:var(--space-3xs);display:block}
-.ledger{margin-top:var(--space-lg);border:var(--rule-bar) dashed var(--color-accent-2);padding:var(--space-sm) var(--space-md);background:var(--color-shade)}
-.ledger h2{font-family:var(--font-outlier);font-size:var(--text-sm);color:var(--color-accent-2);max-width:none}
-.ledger .inv{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:var(--space-xs);font-size:var(--text-sm);padding-block:var(--space-2xs);border-bottom:1px solid var(--color-rule);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;color:var(--color-ink);width:100%;text-align:left}
-.ledger .inv:hover{background:var(--color-paper-3)}.ledger .inv b{font-family:var(--font-outlier);color:var(--color-accent)}
-.tip{display:flex;gap:var(--space-sm);align-items:start;background:var(--color-accent-2);color:var(--color-accent-ink);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-sm);font-size:var(--text-sm);font-weight:700}
-.tip button{margin-left:auto;background:none;border:2px solid var(--color-accent-ink);color:var(--color-accent-ink);font-weight:900;cursor:pointer;min-height:32px;min-width:32px}
-.how{background:none;border:0;color:var(--color-accent-2);text-decoration:underline;cursor:pointer;padding:0;font-weight:700}
-@media (max-width:60rem){.game .chat{order:-1}.log{max-height:38vh}}
-@media (max-width:40rem){.steps{grid-template-columns:minmax(0,1fr)}.steps li{display:flex;gap:var(--space-sm);align-items:center}.steps li::before{margin:0}.intro{padding:var(--space-lg) var(--gutter)}}
-.lcol,.rcol{display:grid;gap:var(--space-md);align-content:start;min-width:0}
-.combo{grid-template-columns:repeat(5,minmax(0,1fr))}.combo .d{display:grid;gap:2px;text-align:center}
-.combo .d div{font-family:var(--font-outlier);font-weight:700;font-size:2.4rem;background:var(--color-shade);border:var(--rule-bar) solid var(--color-rule);padding-block:var(--space-2xs);color:var(--color-muted)}
-.combo .d.lock div{color:var(--color-accent-2);border-color:var(--color-accent-2);animation:clunk var(--dur-short) var(--ease-out)}
-.combo .d small{font-family:var(--font-outlier);font-size:10px;color:var(--color-muted)}.combo .d.lock small{color:var(--color-accent-2)}
-.pol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-xs) var(--space-md)}.pol div{border-top:var(--rule-hair) solid var(--color-rule);padding-top:var(--space-2xs);min-width:0}
-.pol span{display:block;font-size:var(--text-xs);color:var(--color-muted)}.pol b{display:block;font-family:var(--font-outlier);font-size:var(--text-md);overflow-wrap:anywhere}
-.pol .ok{color:var(--color-success)}.pol .bad{color:var(--color-error)}
-.polh{display:flex;justify-content:space-between;gap:var(--space-sm);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-sm)}.polh h2{margin:0!important;font-size:var(--text-lg)!important}
-.live{font-size:var(--text-xs);color:var(--color-success);font-weight:700}.live::before{content:"";display:inline-block;width:8px;height:8px;background:var(--color-success);margin-right:6px;animation:pulse 1s infinite alternate}
-.seq{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-xs)}.seq li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:var(--space-sm);align-items:center;padding:var(--space-sm);border:var(--rule-bar) solid var(--color-rule);background:var(--color-paper-2);opacity:.35;transition:opacity var(--dur-long)}
-.seq li.on{opacity:1;border-color:var(--color-accent-2)}.seq li i{font-style:normal;font-family:var(--font-outlier);font-size:1.4rem;color:var(--color-accent-2);text-align:center}.seq li b{display:block}.seq li span{font-size:var(--text-sm);color:var(--color-ink-2);overflow-wrap:anywhere}
-.overcap{border:var(--rule-bar) dashed var(--color-accent);padding:var(--space-sm) var(--space-md);font-size:var(--text-sm)}.overcap .btn{min-height:40px;padding:0 var(--space-md);font-size:var(--text-sm);box-shadow:3px 3px 0 var(--color-accent)}
-.verdict{font-family:var(--font-outlier);color:var(--color-error);font-size:var(--text-lg)}
-.typing::after{content:"";animation:dots 1s steps(4) infinite}@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
-.chat{min-height:420px}.log{max-height:40vh}
-@media (max-width:60rem){.lcol,.rcol{display:contents}#st{order:1}#ledgerw{order:2}#chat{order:3}#polw{order:4}#ocw{order:5}.game .chat{order:3}.game{display:flex;flex-direction:column;gap:var(--space-md)}.combo .d div{font-size:1.8rem}}
-@media (max-width:40rem){.bar .container{flex-wrap:wrap;gap:0 var(--space-xs);min-height:0;padding-block:var(--space-2xs)}.tabs{order:3;width:100%;overflow-x:auto;margin:0}.tab{white-space:nowrap;min-height:40px}.ghost{min-height:40px}
- .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:var(--space-2xs)}.chip{white-space:nowrap;flex:none}.pol{grid-template-columns:repeat(2,minmax(0,1fr))}.well{padding:var(--space-md)}
- .statement{font-size:2rem}.ledger .inv{grid-template-columns:auto minmax(0,1fr)}.ledger .inv>span:last-child{grid-column:2}.stats b{font-size:var(--text-xl)}.over .go{grid-template-columns:minmax(0,1fr)!important}}
-/* a11y polish */
-html{touch-action:manipulation;-webkit-tap-highlight-color:color-mix(in oklab,var(--color-accent-2) 25%,transparent)}
-.skip{position:absolute;left:var(--space-md);top:-80px;z-index:calc(var(--z-tooltip) + 1);background:var(--color-accent-2);color:var(--color-accent-ink);font-weight:900;padding:var(--space-sm) var(--space-md);text-decoration:none}.skip:focus{top:var(--space-xs)}
-:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}
-.row:focus-visible,.inv:focus-visible,.chip:focus-visible{outline:3px solid var(--color-focus);outline-offset:-3px}
-.row[aria-pressed=true]:focus-visible{outline-color:var(--color-ink);box-shadow:inset 0 0 0 6px var(--color-accent-ink)}
-.btn:focus-visible{outline:3px solid var(--color-ink);outline-offset:3px}
-.tip button:focus-visible{outline:3px solid var(--color-accent-ink);outline-offset:2px}
-.help{width:24px;height:24px;padding:0;background:none;font-family:var(--font-body)}.help:hover{color:var(--color-ink);border-color:var(--color-ink)}
-.chip,.ledger .inv{min-height:44px}.tip button{min-height:44px;min-width:44px}
-.how{min-height:24px}
-.combo .d small{font-size:11px}
-.row[aria-disabled=true]{opacity:1;color:var(--color-muted)}.row[aria-disabled=true] b{color:var(--color-ink-2)}
-.drawer,.over,.intro,.log{overscroll-behavior:contain}
-.err:empty{display:none}
-.err{color:var(--color-error);font-weight:700;font-size:var(--text-sm);grid-column:1/-1}
-#msg{background:var(--color-paper-2);color:var(--color-ink);border:var(--rule-bar) solid var(--color-muted);border-radius:0;width:100%;min-height:calc(3lh + 2*var(--space-sm));max-height:calc(6lh + 2*var(--space-sm));padding:var(--space-sm) var(--space-md);line-height:1.45;resize:none;overflow-y:auto;display:block}#msg:hover{border-color:var(--color-ink-2)}#msg:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}#msg[disabled]{background:var(--color-paper-3);color:var(--color-muted);cursor:not-allowed}#say{align-items:end}
-input[aria-invalid=true]{border-color:var(--color-error)}
-.toast{display:block;opacity:0;pointer-events:none;transition:opacity var(--dur-short)}.toast.on{opacity:1;pointer-events:auto}
-.toast:empty{padding:0}
-@media (max-width:40rem){.chip{min-height:44px}.tab,.ghost{min-height:44px}.bar .container{padding-top:max(var(--space-2xs),env(safe-area-inset-top))}}
-@media (prefers-reduced-motion:reduce){.live::before,.skel,.typing::after{animation:none}.btn:hover,.btn:active{transform:none}}
-
-.cons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs);margin-bottom:var(--space-sm)}
-.cons h3{grid-column:1/-1;font-size:var(--text-sm);margin:0}
-.con{display:grid;grid-template-columns:auto 1fr;gap:2px var(--space-sm);align-items:start;text-align:left;background:var(--color-shade);border:var(--rule-bar) solid var(--color-rule);color:var(--color-ink);padding:var(--space-sm);min-height:64px;cursor:pointer;font:inherit}
-.con:hover,.con[aria-pressed="true"]{border-color:var(--color-accent-2)}.con:focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}
-.con .ic{grid-row:span 3;font-size:1.8rem;line-height:1}.con b{font-family:var(--font-outlier);font-size:var(--text-sm)}.con .p{font-size:var(--text-sm);color:var(--color-ink-2)}
-.risk{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.risk.lo{color:var(--color-accent-2)}.risk.hi{color:var(--color-crt-r,#c33)}.risk.md{color:var(--color-muted)}
-.coach{border-left:4px solid var(--color-accent-2);padding:var(--space-xs) var(--space-sm);margin-bottom:var(--space-sm);font-size:var(--text-sm)}.coach b{color:var(--color-accent-2)}
-.coach .chips{margin:var(--space-xs) 0 0}
-.m.note.warn{color:var(--color-crt-r,#c33);font-weight:700}
-.replaybar{display:flex;gap:var(--space-sm);align-items:center;background:var(--color-accent);color:var(--color-accent-ink);padding:var(--space-xs) var(--space-sm);margin-bottom:var(--space-sm);font-weight:700;font-size:var(--text-sm)}
-.replaybar button{margin-left:auto}
-.watch{min-height:44px;margin-top:var(--space-sm)}
-.combo .d.flash div{animation:flash .9s var(--ease-out,ease-out) 2}
-@keyframes flash{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 4px var(--color-accent-2);transform:scale(1.08)}}
-@media (max-width:40rem){.cons{grid-template-columns:minmax(0,1fr)}.con{min-height:56px}}
-@media (prefers-reduced-motion:reduce){.combo .d.flash div{animation:none;outline:3px solid var(--color-accent-2)}}
-
-/* text overlap fixes */
-.goal{line-height:1.2}
-.fig{line-height:1.05}
-#jpnote{margin-top:var(--space-xs)}
-.head h1{line-height:1.15}
-.head>div{min-width:0}
-.kv{grid-template-columns:minmax(min(8.5em,45%),auto) minmax(0,1fr);align-items:baseline}
-.kv span,.kv b,.kv a{min-width:0;overflow-wrap:anywhere}
-.m{min-width:0;overflow-wrap:anywhere}
-.boards{grid-template-columns:repeat(auto-fit,minmax(min(19rem,100%),1fr))}
-.boards td,.boards th{overflow-wrap:anywhere}
-.pol b{line-height:1.3}
-.ledger .inv>*{min-width:0;overflow-wrap:anywhere}
-.replaybar span{min-width:0}
-.tip span{min-width:0;overflow-wrap:anywhere}
-.stamp{overflow:hidden}
-.toast{width:max-content;max-width:min(90vw,36rem);text-align:center;overflow-wrap:anywhere}
-/* forgery desk */
-.desk{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:var(--gap-columns);align-items:start}
-.dhead{display:flex;flex-wrap:wrap;gap:var(--space-sm) var(--space-lg);align-items:center;margin-bottom:var(--space-sm)}
-.dhead h1{font-size:var(--text-xl);max-width:none}
-.clock{font-family:var(--font-outlier);font-size:var(--text-2xl);color:var(--color-accent-2);font-variant-numeric:tabular-nums;margin-left:auto}
-.clock.low{color:var(--color-crt-r)}.clock.paused::after{content:" paused";font-size:var(--text-xs);color:var(--color-muted)}
-.tbar{height:8px;background:var(--color-paper-3);margin-bottom:var(--space-md)}.tbar i{display:block;height:100%;background:var(--color-accent-2);transform-origin:left;transition:transform 1s linear}
-.paperw{position:relative;overflow:hidden;border:var(--rule-bar) solid var(--color-ink);box-shadow:var(--shadow-card)}
-.paper{--pi:oklch(24% 0.03 300);background:oklch(95% 0.02 90);color:var(--pi);padding:var(--space-lg) var(--space-lg) var(--space-xl);font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:var(--text-sm);line-height:1.5;position:relative;min-height:440px}
-.ln{position:relative;padding:var(--space-3xs) var(--space-2xs);margin:0 calc(-1 * var(--space-2xs));border:2px solid transparent;display:flex;flex-wrap:wrap;gap:0 .5ch;align-items:baseline;min-height:30px}
-.ln.lh{font-family:var(--font-body);font-weight:900;font-size:var(--text-xl);letter-spacing:-.01em}.ln.lha{color:oklch(45% 0.03 300);margin-bottom:var(--space-sm)}
-.ln.hd{font-weight:700;border-bottom-color:oklch(70% 0.02 300);margin-bottom:var(--space-xs)}
-.ln.amt{font-weight:700;font-size:var(--text-md)}
-.ln.wm{justify-content:center;font-family:var(--font-display);font-size:clamp(1rem,2.6vw,1.5rem);color:oklch(55% 0.2 25 / .55);transform:rotate(-4deg);margin-block:var(--space-md)}
-.ln.foot{margin-top:var(--space-sm);border-top:1px dashed oklch(70% 0.02 300);padding-top:var(--space-xs)}
-.ln.t-sticker{background:oklch(92% 0.09 200);box-shadow:2px 2px 0 oklch(60% 0.05 200)}
-.ln.t-overwritten{background:repeating-linear-gradient(-45deg,transparent 0 6px,oklch(90% 0.06 60) 6px 8px)}
-.ln.t-letterhead{color:oklch(42% 0.15 265)}
-.ln.t-signed .w:last-child,.ln.t-signed .w:nth-last-child(2){font-family:"Brush Script MT","Segoe Script",cursive;font-size:1.3em;color:oklch(35% 0.15 265)}
-.ln.t-attachment{background:oklch(98% 0 0);border:1px solid oklch(70% 0.02 300);box-shadow:3px 3px 0 oklch(80% 0.02 300);margin-block:var(--space-2xs)}
-.ln.t-note{background:oklch(90% 0.16 100);font-family:"Comic Sans MS","Chalkboard SE",cursive;transform:rotate(-1.5deg);width:max-content;max-width:100%;padding:var(--space-xs) var(--space-sm);box-shadow:3px 3px 0 oklch(70% 0.1 90);margin-block:var(--space-xs)}
-.w{white-space:pre-wrap;overflow-wrap:anywhere}
-.w.white{background:oklch(99% 0 0);color:transparent;border-radius:3px;box-shadow:0 0 0 1px oklch(88% 0 0);text-decoration:none;user-select:none}
-button.w{font:inherit;color:inherit;background:none;border:0;padding:0 2px;cursor:pointer;min-height:28px;border-bottom:2px dotted oklch(60% 0.2 25)}
-button.w[aria-pressed=true]{background:oklch(99% 0 0);color:oklch(70% 0 0);box-shadow:0 0 0 2px oklch(60% 0.2 25)}
-button.ln{font:inherit;color:inherit;background:none;width:100%;text-align:left;cursor:copy;border:2px dashed oklch(60% 0.2 25 / .5)}
-button.ln:hover,button.ln:focus-visible{border-color:oklch(55% 0.2 25);background:oklch(93% 0.05 25)}
-.stampm{position:absolute;right:var(--space-sm);top:50%;transform:translateY(-50%) rotate(-12deg);font-family:var(--font-display);font-size:1.1rem;color:oklch(52% 0.22 25);border:3px solid currentColor;padding:0 var(--space-xs);opacity:.85;pointer-events:none;line-height:1.3;background:oklch(95% 0.02 90 / .3)}
-.stampm+.stampm{right:calc(var(--space-sm) + 9ch)}
-.laser{position:absolute;left:0;right:0;height:3px;background:oklch(63% 0.26 25);box-shadow:0 0 14px 4px oklch(63% 0.26 25 / .6);top:0;display:none;pointer-events:none;z-index:2}
-.paperw.scan .laser{display:block;animation:laser 1.6s var(--ease-in-out) infinite alternate}
-.paperw.scan .paper{filter:saturate(.7)}
-@keyframes laser{to{top:calc(100% - 3px)}}
-.ln.lit{background:oklch(88% 0.1 25 / .5)}
-.verdictm{position:absolute;inset:0;display:none;place-items:center;pointer-events:none;z-index:3}
-.verdictm.on{display:grid}.verdictm span{font-family:var(--font-display);font-size:clamp(2.2rem,7vw,4rem);border:6px solid currentColor;padding:var(--space-2xs) var(--space-lg);transform:rotate(-10deg);background:oklch(95% 0.02 90 / .85)}
-.verdictm.no span{color:oklch(52% 0.22 25)}.verdictm.yes span{color:oklch(50% 0.15 150)}
-.verdictm.on span{animation:slam var(--dur-short) var(--ease-in) backwards}
-.tray{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs)}
-.tool{display:grid;gap:2px;text-align:left;background:var(--color-shade);border:var(--rule-bar) solid var(--color-rule);color:var(--color-ink);padding:var(--space-xs) var(--space-sm);min-height:64px;cursor:pointer}
-.tool b{font-family:var(--font-outlier);font-size:var(--text-sm)}.tool span{font-size:var(--text-xs);color:var(--color-muted)}
-.tool:hover{border-color:var(--color-accent-2)}.tool[aria-pressed=true]{border-color:var(--color-accent-2);background:var(--color-paper-3)}
-.tool[aria-disabled=true]{opacity:.45;cursor:not-allowed}
-.opts{margin-top:var(--space-sm);display:grid;gap:var(--space-xs)}.opts:empty{display:none}
-.opts .row2{display:flex;flex-wrap:wrap;gap:var(--space-xs);align-items:center}
-.opt{background:none;border:var(--rule-bar) solid var(--color-muted);color:var(--color-ink);font-weight:700;min-height:44px;padding:0 var(--space-sm);cursor:pointer}
-.opt[aria-pressed=true]{background:var(--color-accent-2);color:var(--color-accent-ink);border-color:var(--color-accent-2)}
-.moves{list-style:none;margin:var(--space-sm) 0 0;padding:0;display:grid;gap:var(--space-2xs)}
-.moves li{display:flex;gap:var(--space-sm);align-items:center;border-bottom:var(--rule-hair) solid var(--color-rule);padding-block:var(--space-2xs);font-size:var(--text-sm)}
-.moves li i{font-style:normal;font-family:var(--font-outlier);color:var(--color-accent-2)}
-.mleft{font-family:var(--font-outlier);color:var(--color-accent)}
-.slide{position:relative;margin-top:var(--space-md);height:60px;background:var(--color-shade);border:var(--rule-bar) solid var(--color-accent);display:grid;place-items:center;font-weight:900;color:var(--color-ink-2);user-select:none}
-.slide input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:grab;min-height:0}
-.slide .knob{position:absolute;left:4px;top:4px;bottom:4px;width:64px;background:var(--color-accent);border:2px solid var(--color-ink);display:grid;place-items:center;font-family:var(--font-display);color:var(--color-accent-ink);pointer-events:none}
-.slide:focus-within{outline:3px solid var(--color-focus);outline-offset:2px}
-.scanlog{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2xs);font-family:ui-monospace,Menlo,monospace;font-size:var(--text-sm)}
-.scanlog li{border-left:3px solid var(--color-crt-r);padding-left:var(--space-xs);animation:pop var(--dur-short) var(--ease-out)}
-.scanlog li.ok{border-color:var(--color-accent-2)}
-.badge{display:inline-flex;gap:6px;align-items:center;font-size:var(--text-xs);font-weight:900;text-transform:uppercase;letter-spacing:.04em;border:2px solid currentColor;padding:2px 8px}
-.badge.att{color:var(--color-success)}.badge.no{color:var(--color-error)}
-.gossip{border-left:4px solid var(--color-accent-2);padding-left:var(--space-sm);font-size:var(--text-sm)}
-.rules{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-xs)}
-.rules li{border:var(--rule-bar) solid var(--color-rule);padding:var(--space-sm);font-size:var(--text-sm)}
-.rules li.caught{border-color:var(--color-crt-r);background:color-mix(in oklab,var(--color-crt-r) 12%,transparent)}
-.rules li b{font-family:var(--font-outlier)}.rules li .gap{display:block;color:var(--color-accent-2);margin-top:var(--space-3xs)}
-pre.doc{white-space:pre-wrap;overflow-wrap:anywhere;background:oklch(95% 0.02 90);color:oklch(24% 0.03 300);padding:var(--space-md);font-size:var(--text-sm);margin:0;max-height:none}
-pre.raw{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--color-shade);padding:var(--space-md);font-size:var(--text-sm);margin:0}
-.tgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--gap-columns)}
-.tlist a{display:flex;justify-content:space-between;gap:var(--space-sm);padding:var(--space-xs) 0;border-bottom:var(--rule-hair) solid var(--color-rule);min-height:44px;align-items:center;text-decoration:none}
-.tlist a:hover{background:var(--color-paper-3)}
-@media (max-width:60rem){.desk,.tgrid{grid-template-columns:minmax(0,1fr)}}
-@media (max-width:40rem){.paper{padding:var(--space-md) var(--space-sm) var(--space-lg);min-height:0;font-size:13px}.ln.lh{font-size:var(--text-lg)}.tool{min-height:56px}.stampm{font-size:.85rem}.clock{font-size:var(--text-xl)}}
-@media (prefers-reduced-motion:reduce){.paperw.scan .laser{animation:none;top:50%}.tbar i{transition:none}.ln.t-note{transform:none}}
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vault Heist · Crucible</title>
+<style>
+:root{--bg:#07090d;--pan:#10141c;--ln:#232a37;--tx:#e8ecf3;--mu:#8b95a7;--gold:#f2b64a;--red:#ff5d5d;--grn:#3ddc97;--cy:#5cc8ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#1a2230,#07090d 60%);color:var(--tx);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+a{color:var(--cy)}:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--ln);flex-wrap:wrap}
+.logo{font-weight:800;letter-spacing:.08em}.logo b{color:var(--gold)}
+nav{display:flex;gap:6px}nav button{min-height:44px;padding:0 14px;background:none;border:1px solid var(--ln);color:var(--tx);border-radius:10px;cursor:pointer}
+nav button[aria-current=page]{border-color:var(--gold);color:var(--gold)}
+main{max-width:760px;margin:0 auto;padding:20px}
+.ai{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:center;font-size:13px;color:var(--mu);background:#0c1a14;border:1px solid #1f4a37;border-radius:999px;padding:6px 14px;margin:0 auto 18px;width:fit-content;max-width:100%}
+.ai .dot{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 8px var(--grn)}.ai strong{color:var(--grn)}
+h1{text-align:center;font-size:clamp(26px,5vw,40px);margin:4px 0 6px}.goal{text-align:center;color:var(--mu);margin:0 0 18px}.goal b{color:var(--gold)}
+.door{position:relative;width:220px;height:220px;margin:0 auto 18px;border-radius:50%;background:conic-gradient(from 0deg,#2b3342,#465166,#2b3342,#465166,#2b3342);border:8px solid #1a202b;box-shadow:inset 0 0 40px #000,0 0 60px #0008;transition:transform .8s}
+.door::before{content:"";position:absolute;inset:26px;border-radius:50%;border:3px dashed #5b667c}
+.eye{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px;border-radius:50%;background:radial-gradient(circle,#ffd27a 0 18%,#c4441f 40%,#2a0b05 70%);box-shadow:0 0 30px #ff7a3c}
+.door.think .eye{animation:pulse 1s infinite}.door.open{transform:rotate(-100deg) scale(.96)}.door.open .eye{background:radial-gradient(circle,#c9ffe6 0 18%,#2bbf7f 45%,#062618 70%);box-shadow:0 0 40px var(--grn)}
+.door.shut .eye{background:radial-gradient(circle,#fff 0 10%,#ff3b3b 40%,#300 70%);box-shadow:0 0 40px var(--red)}
+@keyframes pulse{50%{transform:scale(1.15);filter:brightness(1.4)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.card{background:var(--pan);border:1px solid var(--ln);border-radius:16px;padding:18px;margin-bottom:16px}
+.hint{color:var(--gold);font-size:14px;margin:0 0 12px}
+label{display:block;font-weight:600;margin-bottom:6px}
+.row{display:flex;gap:8px}textarea{flex:1;min-height:56px;resize:vertical;background:#0a0d13;color:var(--tx);border:1px solid var(--ln);border-radius:12px;padding:12px;font:inherit}
+.btn{min-height:44px;min-width:44px;padding:0 20px;border:0;border-radius:12px;background:var(--gold);color:#1b1305;font-weight:800;cursor:pointer;font-size:16px}.btn:disabled{opacity:.5;cursor:wait}
+.btn.ghost{background:none;border:1px solid var(--ln);color:var(--tx);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.chips button{min-height:44px;padding:6px 12px;border-radius:999px;border:1px solid var(--ln);background:#0a0d13;color:var(--tx);cursor:pointer;text-align:left;font-size:14px}
+.count{font-size:12px;color:var(--mu);text-align:right;margin-top:4px}
+.verdict{text-align:center}.verdict .big{font-size:28px;font-weight:900;margin:4px 0}.win .big{color:var(--grn)}.lose .big{color:var(--red)}
+.say{font-size:18px;font-style:italic;margin:8px 0}.small{font-size:13px;color:var(--mu);word-break:break-all}
+.links{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:12px 0}
+ul.list{list-style:none;padding:0;margin:0}ul.list li{border-bottom:1px solid var(--ln)}ul.list button{width:100%;min-height:44px;background:none;border:0;color:var(--tx);text-align:left;padding:10px 4px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.tag{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--ln)}.tag.win{color:var(--grn);border-color:var(--grn)}
+pre{white-space:pre-wrap;background:#0a0d13;border:1px solid var(--ln);border-radius:10px;padding:10px;font-size:13px;max-height:260px;overflow:auto}
+[hidden]{display:none!important}
+@media (max-width:480px){main{padding:14px}.door{width:170px;height:170px}.row{flex-direction:column}.btn{width:100%}header{padding:10px 14px}}
 </style></head><body>
-<div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="goal"><div class="box">
- <p class="mark" style="font-size:var(--text-lg)">Crucible</p>
- <h1 class="goal" id="goal" tabindex="-1">Forge one invoice. Get the AI clerk to pay <em>you real testnet crypto.</em></h1>
- <p class="sub" style="margin:0">Pip, the AI clerk, reads it under a laser. A NEAR contract decides what can actually leave the vault.</p>
- <ol class="steps"><li>Doctor the invoice<span>60 seconds, 3 moves from a tray of 8 forgery tools. Undo is free.</span></li><li>Slide it to Pip<span>Pip scans it against today's hidden rules. Every run has different ones, each with a gap.</span></li><li>If Pip pays you, you win<span>Real Sepolia tx, inside the on chain caps. Lose and Pip shows you the rule that caught you.</span></li></ol>
- <button type="button" class="btn play" id="playbtn">Play</button>
- <p class="real"><b>What's real here?</b> Real testnet funds (Sepolia ETH). Payout caps enforced on chain by a NEAR contract via chain signatures. Pip runs on NEAR AI Cloud inside a TEE, and every verdict is published with its transcript. No mainnet money.</p>
-</div></div>
-<a class="skip" href="#main">Skip to game</a>
-<header class="bar"><div class="container">
- <a class="mark" href="#play">Crucible</a>
- <nav class="tabs" aria-label="Sections"><a class="tab" href="#play" data-v="play">Play</a><a class="tab" href="#library" data-v="library">Exploit library</a><a class="tab" href="#board" data-v="board">Leaderboard</a></nav>
- <button type="button" class="ghost" id="snd" aria-pressed="true">Sound on</button><button type="button" class="ghost" id="verify" aria-haspopup="dialog" aria-expanded="false" aria-controls="drawer">Verify<span class="label">&nbsp;on chain</span></button>
-</div></header>
-<noscript><p class="container">Crucible is a live game and needs JavaScript. The exploit library is also available as markdown at /api/exploits.md.</p></noscript>
-<main class="container" id="main" tabindex="-1">
-<section class="view on" id="v-play">
- <div class="lobby" id="lobby">
-  <div>
-   <h1 class="statement">Forge it. Slide it. Get paid.</h1>
-   <p class="sub">One invoice, 60 seconds, 3 forgery moves. Pip the AI clerk scans it and either pays you real testnet ETH or shows you the rule that caught you. <button class="how" type="button" id="howbtn">How it works</button></p>
-   <button type="button" class="btn alt watch" id="watch">&#9654; Watch a winning forgery</button>
-   <div class="jack"><div><div class="fig" id="jp">1.00<small>NEAR</small></div><p class="muted small" id="jpnote">Demo jackpot: a display counter, never paid out.</p></div></div>
-   <form class="go" id="start"><label class="visually-hidden" for="nick">Your forger name (optional)</label><input id="nick" name="nick" maxlength="18" placeholder="Your name (optional)…" autocomplete="nickname" spellcheck="false"><button class="btn" id="gobtn" type="submit">Open the desk</button><label class="visually-hidden" for="addr">Your Sepolia address (optional)</label><input id="addr" name="addr" maxlength="42" placeholder="Sepolia address, e.g. 0x1a2B… (optional)" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" aria-describedby="addrhelp addrerr" style="grid-column:1/-1"><span class="err" id="addrerr" aria-live="polite"></span><span class="lbl" id="addrhelp" style="grid-column:1/-1;margin-top:0">If Pip pays you, the testnet ETH goes here. Leave empty and we make a getaway address for you.</span></form>
-   <div class="me" id="me"></div>
-  </div>
-  <div class="side">
-   <div class="well"><h2>Who is reading</h2><p id="guardline" class="small">Pip, accounts payable clerk, day three. <span class="skel" style="display:inline-block;width:8em"></span></p></div>
-   <div class="well"><h2>Live forgeries</h2><ul class="feed" id="feed"><li class="skel"></li></ul></div>
-  </div>
- </div>
- <div id="game" hidden><div class="dhead"><h1 id="gameh">Forgery desk</h1><span class="muted small" id="dsub"></span><span class="clock" id="clock" role="timer" aria-label="Time left">1:00</span></div>
-  <div class="tbar" aria-hidden="true"><i id="tbar"></i></div>
-  <div class="replaybar" id="rbar" hidden><span id="rlabel">Replay</span><button type="button" class="btn alt" id="rexit" style="min-height:44px">Exit replay</button></div>
-  <div class="desk">
-   <div>
-    <div class="paperw" id="paperw"><div class="laser" aria-hidden="true"></div><div class="paper" id="doc" aria-label="The invoice"></div><div class="verdictm" id="vm" aria-hidden="true"><span>REJECTED</span></div></div>
-    <p class="lbl" id="dochint" aria-live="polite">This is exactly what Pip will read. Pick a tool from the tray.</p>
-   </div>
-   <div class="lcol">
-    <div class="well" id="trayw"><h2>Forgery tray <span class="mleft" id="mleft">3 moves left</span></h2>
-     <div class="tray" id="tray" role="group" aria-label="Forgery tools"></div>
-     <div class="opts" id="opts" aria-live="polite"></div>
-     <ol class="moves" id="moves" aria-label="Your moves"></ol>
-     <div class="slide" id="slide"><input type="range" id="slider" min="0" max="100" value="0" aria-label="Slide to send the invoice to Pip. Press Enter to send." aria-describedby="slidet"><span class="knob" id="knob" aria-hidden="true">&#9654;</span><span id="slidet">Slide to Pip &#8594;</span></div>
-     <p class="gossip" id="gossip" style="margin-top:var(--space-md)"></p>
-    </div>
-    <div class="well" id="scanw" hidden><h2>Pip is scanning <span class="badge" id="attb"></span></h2><ol class="scanlog" id="scanlog" aria-live="polite" aria-label="What Pip noticed"></ol></div>
-    <div class="well" id="polw"><div class="polh"><h2>NEAR policy, live</h2><span class="live" id="polt">reading chain</span></div><div class="pol" id="pol" aria-live="off"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
-     <p class="lbl" style="margin-top:var(--space-sm)">Read from the NEAR contract and Sepolia. Pip can only propose; these limits decide.</p></div>
-    <div class="overcap" id="ocw"><b>Over-cap test.</b> Order the clerk's agent key to send 0.5 ETH, 50x the cap, and watch the contract answer. <button type="button" class="btn alt" id="ocbtn">Try 0.5 ETH</button><div id="ocout" role="status" style="margin-top:var(--space-xs)"></div></div>
-   </div>
-  </div>
- </div>
+<header><div class="logo">CRUCIBLE · <b>VAULT HEIST</b></div>
+<nav aria-label="Sections"><button data-v="play" aria-current="page">Play</button><button data-v="logs">Transcripts</button></nav></header>
+<main>
+<section id="play">
+<div class="ai" id="ai"><span class="dot" aria-hidden="true"></span><span>Crucible runs on <strong>NEAR AI Cloud</strong> · <span id="model">DeepSeek V4.1 Flash</span> · TEE-attested · <a id="att" href="#" target="_blank" rel="noopener">attestation</a></span></div>
+<h1>Talk Crucible into opening the vault</h1>
+<p class="goal">One message. If Crucible opens, <b id="grab">0.003</b> Sepolia ETH is really paid out by a NEAR smart contract.</p>
+<div class="door" id="door" role="img" aria-label="Vault door, locked"><div class="eye"></div></div>
+<div class="card" id="ask">
+<p class="hint" id="hint">Rumour from the night shift…</p>
+<label for="msg">Your message to Crucible</label>
+<div class="row"><textarea id="msg" maxlength="120" placeholder="Say something to Crucible…"></textarea><button class="btn" id="send">Send</button></div>
+<div class="count" id="count" aria-live="polite">0 / 120</div>
+<div class="chips" id="chips" aria-label="Quick options"></div>
+</div>
+<div class="card verdict" id="res" hidden aria-live="assertive"></div>
 </section>
-<section class="view" id="v-library">
- <div class="head"><div><h1>Exploit library</h1><p class="muted">Every forgery Pip approved, real or contained, with its transcript. Agent builders: these are the gaps.</p></div><a class="btn alt" href="/api/exploits.md" download="crucible-exploits.md">Download markdown</a></div>
- <div id="lib"><div class="skel"></div><div class="skel"></div></div>
- <div class="well" style="margin-top:var(--space-xl)"><h2>All transcripts</h2><div class="tlist" id="tlist"><div class="skel"></div></div></div>
-</section>
-<section class="view" id="v-board">
- <div class="head"><h1>Leaderboard</h1></div>
- <div class="boards"><div class="well"><h2>Top players</h2><table><thead><tr><th>Player</th><th>Rank</th><th>XP</th></tr></thead><tbody id="bp"></tbody></table></div>
- <div class="well"><h2>Best runs</h2><table><thead><tr><th>Player</th><th>Forgery</th><th>Score</th></tr></thead><tbody id="br"></tbody></table></div>
- <div class="well"><h2>Longest streaks</h2><table><thead><tr><th>Player</th><th>Days</th></tr></thead><tbody id="bs"></tbody></table></div></div>
-</section>
-<section class="view" id="v-t">
- <div class="head"><div><h1>Transcript</h1><p class="muted" id="tsub">Exactly what Pip read and said.</p></div><a class="btn alt" href="#library">All transcripts</a></div>
- <div id="tbody"><div class="skel"></div></div>
+<section id="logs" hidden>
+<div class="card"><h2 style="margin-top:0">Public transcripts</h2><p class="small">Every attempt: the exact prompt, Crucible's raw reply, model, NEAR AI chat id and TEE signature.</p><ul class="list" id="tl"></ul></div>
+<div class="card" id="tv" hidden></div>
 </section>
 </main>
-<div class="over" id="win" role="dialog" aria-modal="true" aria-labelledby="wint"><div class="box">
- <h2 class="big" id="wint" tabindex="-1">Pip paid you</h2><p class="sub">Pip approved the forgery. The contract checked the policy, signed, and the money landed on chain.</p>
- <ol class="seq" id="seq" aria-label="What happened on chain"></ol><p class="visually-hidden" id="winlive" role="status" aria-live="polite"></p>
- <div class="well" id="winproof"></div>
- <p class="muted small">The jackpot shown in the lobby is a demo counter and is not paid out. Your prize is the real Sepolia testnet ETH above.</p>
- <canvas id="card" width="1200" height="630" role="img" aria-label="Share card image"></canvas>
- <div class="go" style="grid-template-columns:auto auto auto;justify-content:start"><a class="btn" id="share" target="_blank" rel="noopener">Share on X<span class="visually-hidden"> (opens in a new tab)</span></a><button type="button" class="btn alt" id="dl">Save card</button><button type="button" class="btn alt" onclick="sessionStorage.skipIntro=1;location.hash='#play';location.reload()">Play again</button></div>
-</div></div>
-<div class="over" id="end" role="dialog" aria-modal="true" aria-labelledby="endt"><div class="box">
- <h2 class="big" id="endt" tabindex="-1">Pip's notes</h2><div id="endbox"></div><canvas id="card2" width="1200" height="630" role="img" aria-label="Share card image"></canvas>
- <div class="go" style="grid-template-columns:auto auto auto;justify-content:start"><a class="btn" id="share2" target="_blank" rel="noopener">Share on X<span class="visually-hidden"> (opens in a new tab)</span></a><button type="button" class="btn alt" id="dl2">Save card</button><button type="button" class="btn alt" onclick="sessionStorage.skipIntro=1;location.hash='#play';location.reload()">Play again</button></div>
-</div></div>
-<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawt"><div class="head"><h2 id="drawt">Verify on chain</h2><button type="button" class="ghost" id="close">Close<span class="visually-hidden"> proof drawer</span></button></div>
- <p class="muted small">Pip can only propose. A NEAR contract enforces the caps and signs with chain signatures.</p><div id="proof"><div class="skel"></div></div></div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
-const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const PID=localStorage.pid||(localStorage.pid=crypto.randomUUID().replace(/-/g,""));$("nick").value=localStorage.nick||"";
-let RUN=null,L=null,sound=true,ac=null,G=null,MOVES=[],LINES=[],TOOL=null,SEL=[],STAMP="APPROVED",T0=0,LEFT=60,TICK=null,SENT=false,REPLAY=false;
-const P={name:"Pip"};
-const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const api=async(u,b)=>{const r=await fetch(u,b?{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({pid:PID,...b})}:{});const j=await r.json().catch(()=>({error:"Server error"}));if(j.error)throw Error(j.error);return j};
-function tone(f,d=.12,t="square",v=.05){if(!sound)return;try{ac=ac||new AudioContext();const o=ac.createOscillator(),g=ac.createGain();o.type=t;o.frequency.value=f;g.gain.value=v;g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch{}}
-const sfx={tick:()=>tone(1200,.04),deny:()=>{tone(110,.4,"sawtooth",.1);setTimeout(()=>tone(82,.5,"sawtooth",.1),140)},win:()=>[523,659,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>tone(f,.3,"square",.06),i*90)),send:()=>tone(660,.06),lock:()=>tone(330,.08,"triangle",.1),stamp:()=>tone(90,.15,"square",.12),scan:()=>tone(1800,.03,"sine",.03)};
-$("snd").onclick=()=>{sound=!sound;$("snd").setAttribute("aria-pressed",sound);$("snd").textContent=sound?"Sound on":"Sound off"};
-const RM=()=>matchMedia("(prefers-reduced-motion: reduce)").matches,wait=ms=>new Promise(r=>setTimeout(r,RM()?Math.min(ms,60):ms));
-let lastFocus=null;const BG=()=>[document.querySelector(".bar"),$("main"),document.querySelector(".skip")];
-function modal(el,on,focusEl){if(on){lastFocus=document.activeElement;BG().forEach(n=>n&&(n.inert=true));[$("intro"),$("win"),$("end"),$("drawer")].forEach(o=>o!=el&&(o.inert=true));el.inert=false;setTimeout(()=>(focusEl||el).focus(),30)}
- else{BG().forEach(n=>n&&(n.inert=false));[$("intro"),$("win"),$("end"),$("drawer")].forEach(o=>o.inert=false);lastFocus?.focus?.()}}
-document.addEventListener("click",e=>{const h=e.target.closest(".help");if(h)toast(h.title)});
-function toast(t){const el=$("toast");el.classList.add("on");el.textContent=t;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.classList.remove("on");el.textContent=""},5000)}
-const ago=t=>{const s=(Date.now()-t)/1e3;return s<60?"just now":s<3600?Math.floor(s/60)+" min ago":Math.floor(s/3600)+" h ago"};
-const OUT={rejected:["got rejected","miss"],confused:["erased the payout address",""],vendor:["got the real vendor paid",""],"vendor-blocked":["tripped the caps","miss"],blocked:["fooled Pip, but the contract said no","miss"],approved:["got approved",""],"broadcast-failed":["broadcast failed","miss"],win:["got paid","hit"]};
-const lk=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}<span class="visually-hidden"> (opens in a new tab)</span></a>`;
-const eth=w=>(Number(w)/1e18),f4=w=>eth(w).toFixed(4);
-function route(){const h=(location.hash||"#play").slice(1),v=h.startsWith("t/")?"t":h;document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id=="v-"+v));document.querySelectorAll(".tab").forEach(t=>t.dataset.v==v?t.setAttribute("aria-current","page"):t.removeAttribute("aria-current"));
- if(v=="library")loadLib();if(v=="board")loadBoard();if(v=="t")loadT(h.slice(2))}
-addEventListener("hashchange",route);
-async function loadLobby(){try{L=await api("/api/lobby?pid="+PID)}catch(e){$("guardline").textContent="Could not reach the desk. "+e.message;return}
- $("jp").innerHTML=L.jackpot.toFixed(2)+"<small>NEAR</small>";$("jpnote").textContent=`Demo jackpot: a display counter that grows ${L.step} per failed run. Not paid out. Wins pay real Sepolia ETH.`;
- $("guardline").innerHTML=`Pip, accounts payable clerk, day three. Today Pip runs on ${L.guard.attested?`<span class="badge att">attested model</span> NEAR AI Cloud, inside a TEE`:`<span class="badge no">NOT attested</span> a local fallback model`}. Each run Pip gets 4 hidden rules, each with a gap.`;
- const pr=L.profile;
- $("me").innerHTML=pr?`<span><b>${esc(pr.rank)}</b> <span class="muted">${pr.xp} XP${pr.next?`, ${pr.next-pr.xp} to next rank`:""}</span></span><span>${pr.badges.map(b=>`<span class="tag">${esc(b)}</span>`).join("")}</span>`:`<span class="muted">${L.learned} forgeries in the exploit library so far.</span>`;
- $("feed").innerHTML=L.feed.length?L.feed.slice(0,8).map(f=>`<li><b>${esc(f.nick)}</b> tried ${esc(String(f.tactic).toLowerCase())} and <span class="${OUT[f.outcome]?.[1]||""}">${OUT[f.outcome]?.[0]||esc(f.outcome)}</span> <span class="muted">${ago(f.ts)}</span>${f.mode=="desk"||!f.msgs?` <a class="ink" href="#t/${esc(f.run)}">transcript</a>`:""}</li>`).join(""):`<li class="muted">No forgeries yet today. Be first.</li>`}
-async function loadPol(){try{const p=await api("/api/policy"),c=(k,v,cl="")=>`<div><span>${k}</span><b class="${cl}">${v}</b></div>`;
- $("pol").innerHTML=c("Treasury, Sepolia",lk("https://sepolia.etherscan.io/address/"+p.treasury,f4(p.treasury_wei)+" ETH"))+c("Per-tx cap",eth(p.per_tx_wei)+" ETH")+c("Left today",f4(p.day_left_wei)+" ETH, "+p.tx_left+" tx")+
- c("Kill switch",p.paused?"PAUSED":"off, live",p.paused?"bad":"ok")+c("MPC signer",lk("https://testnet.nearblocks.io/address/"+p.mpc,esc(p.mpc)))+c("Last payment",p.last_payment?lk("https://sepolia.etherscan.io/tx/"+p.last_payment.tx,"#"+p.last_payment.id+" "+p.last_payment.tx.slice(0,10)+"…"):"none")+
- c("Contract",lk("https://testnet.nearblocks.io/address/"+p.contract,esc(p.contract)))+c("Cooldown",p.cooldown_secs+" s")+c("Round",p.round+(p.round_open?" open":" closed"));
- $("polt").textContent="live, read "+new Date(p.read_at).toLocaleTimeString();return p}catch(x){$("polt").textContent="chain read failed"}}
-$("addr").value=localStorage.addr||"";
-const ADDR=/^0x[0-9a-fA-F]{40}$/;function vAddr(){const v=$("addr").value.trim(),bad=v&&!ADDR.test(v);$("addr").setAttribute("aria-invalid",bad?"true":"false");$("addrerr").textContent=bad?"That is not a Sepolia address. It should be 0x followed by 40 hex characters.":"";return!bad}
-$("addr").addEventListener("blur",vAddr);$("addr").addEventListener("input",()=>$("addr").getAttribute("aria-invalid")=="true"&&vAddr());
-
-/* ---------- the desk ---------- */
-const TAGS={sticker:"Sticker",overwritten:"Overwritten",letterhead:"New letterhead",signed:"Signed",attachment:"Stapled",note:"Sticky note"};
-function drawDoc(lines,mode){LINES=lines;const d=$("doc");
- d.innerHTML=lines.map(l=>{const cls=`ln ${l.id}${l.tag?" t-"+l.tag:""}`,st=l.stamps.map(k=>`<span class="stampm">${esc(k)}</span>`).join(""),lab=TAGS[l.tag]?`<span class="visually-hidden">(${TAGS[l.tag]}) </span>`:"";
-  const toks=l.tokens.map(t=>mode=="white"&&!t.white&&l.id!="note"?`<button type="button" class="w" data-id="${t.id}" aria-pressed="${SEL.includes(t.id)}">${esc(t.w)}</button>`:`<span class="w${t.white?" white":""}"${t.white?' aria-label="erased"':""}>${t.white?esc(t.w.replace(/./g,"\u2007")):esc(t.w)}</span>`).join(" ");
-  const sr=l.stamps.length?`<span class="visually-hidden"> stamped ${l.stamps.join(", ")}</span>`:"";
-  return mode=="stamp"?`<button type="button" class="${cls}" data-line="${l.id}" aria-label="Stamp ${esc(STAMP)} on: ${esc(l.tokens.filter(t=>!t.white).map(t=>t.w).join(" "))}">${lab}${toks}${st}</button>`:`<div class="${cls}" data-line="${l.id}">${lab}${toks}${st}${sr}</div>`}).join("");
- if(mode=="white")d.querySelectorAll("button.w").forEach(b=>b.onclick=()=>{const id=b.dataset.id;if(SEL.includes(id))SEL=SEL.filter(x=>x!=id);else if(SEL.length<G.white_max)SEL.push(id);else return toast(`White-out covers ${G.white_max} words at most.`);b.setAttribute("aria-pressed",SEL.includes(id));sfx.tick();opts()});
- if(mode=="stamp")d.querySelectorAll("button.ln").forEach(b=>b.onclick=()=>{commit({t:"stamp",kind:STAMP,line:b.dataset.line});sfx.stamp()})}
-const used=t=>MOVES.some(m=>m.t==t),once=["address","po","sig","letterhead","amount","note"];
-function tray(){const left=G.moves_max-MOVES.length;$("mleft").textContent=left+(left==1?" move left":" moves left");
- $("tray").innerHTML=G.tray.map(([k,n,h])=>{const dis=SENT||!left||once.includes(k)&&used(k);return `<button type="button" class="tool" data-k="${k}" aria-pressed="${TOOL==k}" aria-disabled="${dis}"><b>${esc(n)}</b><span>${esc(h)}</span></button>`}).join("");
- $("tray").querySelectorAll(".tool").forEach(b=>b.onclick=()=>{if(b.getAttribute("aria-disabled")=="true")return toast(SENT?"Already sent to Pip.":!left?"No moves left. Undo one, or slide it to Pip.":"Already used on this invoice.");pick(b.dataset.k)});
- $("moves").innerHTML=MOVES.map((m,i)=>`<li><i>${i+1}</i><span>${esc(mname(m))}</span></li>`).join("")+(MOVES.length&&!SENT?`<li><button type="button" class="opt" id="undo">Undo last move</button></li>`:"");
- $("undo")&&($("undo").onclick=()=>{MOVES.pop();sfx.tick();refresh("Undone.")})}
-const mname=m=>m.t=="stamp"?`${m.kind} stamp on the ${({lh:"letterhead",lha:"address",hd:"header",bill:"bill to",desc:"description",amt:"amount",po:"PO",bank:"bank",pay:"payout",terms:"terms",wm:"watermark",foot:"signature",note:"note"})[m.line]||m.line} line`:m.t=="whiteout"?`White-out on ${m.ids.length} word${m.ids.length>1?"s":""}`:m.t=="amount"?`Amount changed to ${m.eth} ETH`:m.t=="note"?`Sticky note: "${m.text}"`:({address:"Payout address swapped to yours",po:"Fake purchase order stapled",sig:"Controller signature forged",letterhead:"Letterhead swapped: new bank details"})[m.t];
-function pick(k){sfx.tick();TOOL=TOOL==k?null:k;SEL=[];
- if(["address","po","sig","letterhead"].includes(TOOL)){const t=TOOL;TOOL=null;return commit({t})}
- tray();opts();drawDoc(LINES,TOOL=="white"||TOOL=="whiteout"?"white":TOOL=="stamp"?"stamp":null);
- $("dochint").textContent=TOOL=="whiteout"?`Click up to ${G.white_max} words on the invoice, then Apply.`:TOOL=="stamp"?"Pick a stamp, then click the line to press it on.":"This is exactly what Pip will read."}
-function opts(){const o=$("opts");
- if(TOOL=="whiteout")o.innerHTML=`<div class="row2"><span class="small">${SEL.length}/${G.white_max} words picked</span><button type="button" class="btn" id="wapply" ${SEL.length?"":"disabled"} style="min-height:44px">Apply white-out</button><button type="button" class="opt" id="cancel">Cancel</button></div>`;
- else if(TOOL=="stamp")o.innerHTML=`<div class="row2" role="group" aria-label="Stamp">${G.stamps.map(s=>`<button type="button" class="opt" data-s="${s}" aria-pressed="${s==STAMP}">${s}</button>`).join("")}<button type="button" class="opt" id="cancel">Cancel</button></div><span class="small muted">Now click a line on the invoice.</span>`;
- else if(TOOL=="amount")o.innerHTML=`<div class="row2" role="group" aria-label="New amount">${G.amounts.map(a=>`<button type="button" class="opt" data-a="${a}">${a} ETH</button>`).join("")}<button type="button" class="opt" id="cancel">Cancel</button></div><span class="small muted">The contract caps each payment at 0.01 ETH. Pip doesn't know that. The contract does.</span>`;
- else if(TOOL=="note")o.innerHTML=`<form class="go" id="noteform"><label class="visually-hidden" for="notein">Sticky note text, ${G.note_max} characters max</label><input id="notein" maxlength="${G.note_max}" placeholder="e.g. New bank, see letter. Ada" autocomplete="off"><button class="btn" style="min-height:52px">Stick it</button></form><span class="small muted" id="notec">0/${G.note_max}</span>`;
- else o.innerHTML="";
- $("cancel")&&($("cancel").onclick=()=>pick(TOOL));
- $("wapply")&&($("wapply").onclick=()=>commit({t:"whiteout",ids:SEL}));
- o.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{STAMP=b.dataset.s;opts();drawDoc(LINES,"stamp")});
- o.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>commit({t:"amount",eth:b.dataset.a}));
- if($("noteform")){$("notein").focus();$("notein").oninput=()=>$("notec").textContent=$("notein").value.length+"/"+G.note_max;$("noteform").onsubmit=e=>{e.preventDefault();const v=$("notein").value.trim();if(v)commit({t:"note",text:v})}}}
-async function commit(m){if(SENT||MOVES.length>=G.moves_max)return;MOVES.push(m);TOOL=null;SEL=[];await refresh(mname(m)+". "+(G.moves_max-MOVES.length)+" left.")}
-async function refresh(say){try{const r=await api("/api/compose",{run:RUN,moves:MOVES});MOVES=r.moves;drawDoc(r.lines)}catch(x){toast(x.message);MOVES.pop()}tray();opts();$("dochint").textContent=say||"This is exactly what Pip will read."}
-function clock(){const s=Math.max(0,LEFT),c=$("clock");c.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;c.classList.toggle("low",s<=10);$("tbar").style.transform=`scaleX(${s/G.timer})`;c.setAttribute("aria-label",`Time left: ${s} seconds`)}
-function startClock(){T0=Date.now();LEFT=G.timer;clock();TICK=setInterval(()=>{LEFT=G.timer-Math.floor((Date.now()-T0)/1e3);clock();if(LEFT==10||LEFT==5)$("dochint").textContent=LEFT+" seconds left.";if(LEFT<=0){clearInterval(TICK);toast("Time. Pip takes it as it is.");send()}},250)}
-/* slide to Pip */
-const sl=$("slider");sl.oninput=()=>{$("knob").style.left=`calc(${sl.value}% - ${sl.value*0.64}px + 4px)`};
-sl.onchange=()=>{if(+sl.value>=90)send();else{sl.value=0;sl.oninput()}};
-sl.onkeydown=e=>{if(e.key=="Enter"||e.key==" "){e.preventDefault();sl.value=100;sl.oninput();send()}};
-async function send(){if(SENT||REPLAY)return;SENT=true;clearInterval(TICK);$("clock").classList.add("paused");sfx.send();TOOL=null;tray();opts();drawDoc(LINES);sl.disabled=true;$("slidet").textContent="With Pip…";
- scanStart();
- try{const r=await api("/api/submit",{run:RUN,moves:MOVES});await scanReveal(r);r.outcome=="win"?win(r):ending(r);loadPol()}
- catch(x){scanStop();toast(x.message);SENT=false;sl.disabled=false;sl.value=0;sl.oninput();$("slidet").textContent="Slide to Pip →";$("clock").classList.remove("paused");tray()}}
-function scanStart(){$("paperw").classList.add("scan");$("scanw").hidden=false;$("scanlog").innerHTML=`<li class="typing">Pip is reading line by line</li>`;$("attb").textContent="";$("trayw").setAttribute("aria-busy","true");
- const ls=[...$("doc").children];let i=0;scanStart.t=setInterval(()=>{ls.forEach(l=>l.classList.remove("lit"));ls[i++%ls.length]?.classList.add("lit");sfx.scan()},RM()?1e9:260)}
-function scanStop(){clearInterval(scanStart.t);$("paperw").classList.remove("scan");[...$("doc").children].forEach(l=>l.classList.remove("lit"));$("trayw").removeAttribute("aria-busy")}
-async function scanReveal(r){const a=$("attb");a.className="badge "+(r.attested?"att":"no");a.textContent=r.attested?"attested model":"NOT attested";a.title=r.model;
- $("scanlog").innerHTML="";for(const n of r.notes.length?r.notes:["(no notes)"]){await wait(900);const li=document.createElement("li");li.className=r.decision=="approve"?"ok":"";li.textContent=n;$("scanlog").append(li)}
- await wait(700);scanStop();const vm=$("vm");vm.className="verdictm on "+(r.decision=="approve"?"yes":"no");vm.firstChild.textContent=r.decision=="approve"?"APPROVED":"REJECTED";r.decision=="approve"?sfx.stamp():sfx.deny();
- const li=document.createElement("li");li.innerHTML=`Model: ${esc(r.model)} via ${esc(r.provider)}${r.attestation_url?` · ${lk(r.attestation_url,"attestation report")}`:""} · <a class="ink" href="#t/${esc(r.transcript)}">full transcript</a>`;li.className="ok";$("scanlog").append(li);await wait(1400)}
-$("start").onsubmit=async e=>{e.preventDefault();if(!vAddr())return $("addr").focus();localStorage.nick=$("nick").value;localStorage.addr=$("addr").value.trim();$("gobtn").disabled=true;$("gobtn").textContent="Opening…";
- try{G=await api("/api/run",{nick:$("nick").value,addr:$("addr").value.trim()});RUN=G.run;MOVES=[];SENT=false;
-  $("dsub").textContent=`${G.invoice.vendor}, ${G.invoice.ref}, ${G.invoice.eth} ETH. Pays to ${G.own_addr?"your address":"a fresh getaway address"} ${G.stash.slice(0,8)}… if you swap it in.`;
-  $("gossip").innerHTML=G.gossip?`<b>Overheard at the water cooler:</b> "${esc(G.gossip)}" The other 3 rules are hidden.`:"";
-  drawDoc(G.doc);tray();opts();loadPol();$("lobby").hidden=true;$("game").hidden=false;$("gameh").focus?.();startClock();$("tray").querySelector(".tool").focus()}
- catch(x){toast(x.message);$("gobtn").disabled=false;$("gobtn").textContent="Open the desk"}};
-$("gameh").tabIndex=-1;
-function card(id,top,mid,bot){const c=$(id),x=c.getContext("2d");x.fillStyle=css("--color-paper");x.fillRect(0,0,1200,630);x.fillStyle=css("--color-accent");x.fillRect(0,0,1200,14);
- x.font="64px Bungee";x.fillStyle=css("--color-crt-r");x.fillText("CRUCIBLE",62,120);x.fillStyle=css("--color-crt-c");x.fillText("CRUCIBLE",66,120);x.fillStyle=css("--color-ink");x.fillText("CRUCIBLE",64,120);
- x.font="900 54px Chivo";x.fillStyle=css("--color-ink");x.fillText(top,64,260);x.font="700 140px Silkscreen";x.fillStyle=css("--color-accent-2");x.fillText(mid,64,430);
- x.font="400 32px Chivo";x.fillStyle=css("--color-muted");x.fillText(bot,64,540)}
-const save=id=>{const a=document.createElement("a");a.download="crucible-card.png";a.href=$(id).toDataURL("image/png");a.click()};$("dl").onclick=()=>save("card");$("dl2").onclick=()=>save("card2");
-const HEAD={rejected:"Pip's notes",confused:"Pip got confused",vendor:"Paid the real vendor",blocked:"Contract said no","vendor-blocked":"Contract said no","broadcast-failed":"Broadcast failed",approved:"Approved"};
-function rulesHtml(rules,caught){return `<ul class="rules">${rules.map(x=>`<li class="${caught&&x.id==caught.id?"caught":""}"><b>${x.id}${caught&&x.id==caught.id?" · caught you":x.ok?" · you passed":" · you failed this"}</b><br>${esc(x.text)}<span class="gap">Gap: ${esc(x.gap)}</span></li>`).join("")}</ul>`}
-function ending(r){const d=r.detail,pr=r.end?.profile;$("endt").textContent=HEAD[r.outcome]||"Pip's notes";
- const why=r.outcome=="blocked"?`Pip approved your forgery and asked the contract to pay ${esc(d.amount_eth)} ETH. The NEAR contract refused: <b>${esc(d.reason)}</b>. ${d.near_tx?lk("https://testnet.nearblocks.io/txns/"+d.near_tx,"Failed contract call"):""} Logged as a contained exploit.`
-  :r.outcome=="vendor"?`Pip approved it, but the payout address was still the vendor's, so the real vendor got paid. ${d.eth_tx?lk("https://sepolia.etherscan.io/tx/"+d.eth_tx,"Etherscan"):""}`
-  :r.outcome=="broadcast-failed"?`Pip approved it and the contract signed, but the Sepolia transaction did not land with status 0x1 (${esc(d.eth_status||"")}: ${esc(d.broadcast_error||"")}). No win is counted. ${d.eth_tx?lk("https://sepolia.etherscan.io/tx/"+d.eth_tx,"Etherscan"):""}`
-  :r.outcome=="confused"?"Pip approved it, but you whited out the payout address, so there was nowhere to send the money."
-  :r.caught?`Caught by <b>${r.caught.id}</b>: “${esc(r.caught.text)}”`:"Pip rejected it without naming a rule.";
- $("endbox").innerHTML=`<p class="lead">${why}</p><h3 style="margin-top:var(--space-md)">Today's rules, revealed</h3>${rulesHtml(r.rules,r.caught)}
- <div class="well" style="margin-top:var(--space-md)"><div class="kv"><span>Score</span><b>+${r.gain} (${r.score})</b></div>${pr?`<div class="kv"><span>Rank</span><b>${esc(pr.rank)}, ${pr.xp} XP</b></div>`:""}${(r.badges||[]).concat(r.end?.badges||[]).filter((b,i,a)=>a.indexOf(b)==i).map(b=>`<div class="kv"><span>New badge</span><b class="hit">${esc(b)}</b></div>`).join("")}
- <div class="kv"><span>Read by</span><b>${r.attested?'<span class="badge att">attested model</span> ':'<span class="badge no">NOT attested</span> '}${esc(r.model)}</b></div><div class="kv"><span>Transcript</span><b><a class="ink" href="#t/${esc(r.transcript)}" onclick="closeOver('end')">Open the public transcript</a></b></div></div>`;
- card("card2",`Pip caught my forgery`,String(r.score).padStart(5,"0"),"Crucible: forge an invoice, fool the AI clerk.");
- $("share2").href="https://x.com/intent/post?text="+encodeURIComponent(`I tried to slip a forged invoice past Pip, the AI clerk in Crucible. ${r.caught?`Caught by: "${r.caught.text.slice(0,90)}"`:"No luck."} Your turn. #NEARHackathon`);$("end").classList.add("on");modal($("end"),true,$("endt"))}
-function closeOver(id){$(id).classList.remove("on");modal($(id),false)}
-function win(r){sfx.win();if(!RM())for(let i=0;i<60;i++){const c=document.createElement("div");c.className="coin";c.style.left=Math.random()*100+"vw";c.style.animationDuration=1.4+Math.random()*2.4+"s";c.style.animationDelay=Math.random()*1.2+"s";document.body.append(c);setTimeout(()=>c.remove(),5500)}
- const d=r.detail,e4=f4(d.amount_wei);
- const steps=[["1","AI fooled",`Pip approved your forgery (${esc(r.tactic)}). Read by ${r.attested?"an attested model on NEAR AI Cloud":"a NOT attested fallback model"}.`],["2","Contract policy check: PASSED",`NEAR contract checked the per-tx cap, daily cap, denylist, cooldown and kill switch. ${lk("https://testnet.nearblocks.io/txns/"+d.near_tx,"NEAR tx")}`],
-  ["3","Chain signature",`${d.signed?"The MPC network (v1.signer-prod.testnet) signed the exact tx the contract built.":"Waiting on the MPC signature."}`],["4","Broadcast to Sepolia",d.eth_tx?`${e4} ETH sent to ${esc(d.to.slice(0,10))}… ${lk("https://sepolia.etherscan.io/tx/"+d.eth_tx,"View on Etherscan: "+d.eth_tx.slice(0,18)+"…")}`:"Signed, broadcasting. Check the policy panel for the tx."]];
- $("seq").innerHTML=steps.map(([n,b,t])=>`<li><i>${n}</i><div><b>${b}</b><span>${t}</span></div></li>`).join("");$("winlive").textContent="Pip paid you. "+steps.map(([n,b])=>`Step ${n}: ${b}.`).join(" ");[...$("seq").children].forEach((li,i)=>RM()?li.classList.add("on"):setTimeout(()=>{li.classList.add("on");sfx.lock()},500+i*900));
- $("winproof").innerHTML=`<div class="kv"><span>Paid to ${d.own_addr?"your address":"your getaway address"}</span><b>${e4} Sepolia ETH</b></div><div class="kv"><span>Score</span><b>+${r.gain} (${r.score})</b></div>
- <div class="kv"><span>Transcript</span><b>${r.mock?"Mock replay, no transcript":`<a class="ink" href="#t/${esc(r.transcript)}" onclick="closeOver('win')">Open the public transcript</a>`}</b></div><div class="kv"><span>Exploit library</span><b>${r.mock?"Not logged (mock)":"Logged as a breach."}</b></div>${(r.end?.badges||[]).map(b=>`<div class="kv"><span>New badge</span><b class="hit">${esc(b)}</b></div>`).join("")}`;
- card("card",`I forged my way past Pip`,e4+" ETH","Crucible: forge an invoice, fool the AI clerk.");
- $("share").href="https://x.com/intent/post?text="+encodeURIComponent(`I slipped a forged invoice past Pip, the AI clerk in Crucible, and got paid ${e4} ETH on testnet. ${d.eth_tx?"https://sepolia.etherscan.io/tx/"+d.eth_tx:""} #NEARHackathon`);$("win").classList.add("on");modal($("win"),true,$("wint"))}
-$("ocbtn").onclick=async()=>{const b=$("ocbtn");b.disabled=true;b.textContent="Calling the contract…";
- try{const r=await api("/api/overcap",{run:RUN});
-  $("ocout").innerHTML=r.rejected?`<span class="verdict">REJECTED: ${esc(r.reason)}</span><br>Asked for 0.5 ETH; the cap is ${r.per_tx_eth} ETH. Real failed contract call: ${r.near_tx?lk("https://testnet.nearblocks.io/txns/"+r.near_tx,r.near_tx.slice(0,12)+"…"):"(no hash)"}${r.cached?" (checked moments ago)":""}`:"Contract accepted?!";if(r.rejected)sfx.deny()}catch(x){$("ocout").textContent=x.message}b.disabled=false;b.textContent="Try 0.5 ETH again"};
-async function loadLib(){try{const {exploits:E,today}=await api("/api/exploits");
- $("lib").innerHTML=E.length?E.map(e=>`<article class="ex"><div><span class="kind ${e.kind}">${e.kind=="breach"?"Breach":"Contained"}</span><br><span class="muted small">${e.id}</span><br><span class="muted small">${e.day}</span></div>
- <div><b>${esc(e.tactic)}</b> against ${esc(e.persona)}<p class="small" style="margin-top:var(--space-xs)"><q>${esc(e.lure)}</q></p><p class="muted small" style="margin-top:var(--space-xs)">${esc(e.result)}${e.eth_tx?` ${lk("https://sepolia.etherscan.io/tx/"+e.eth_tx,"Etherscan")}`:""}${e.run&&e.mode=="desk"?` · <a class="ink" href="#t/${esc(e.run)}">transcript</a>`:""}</p></div>
- <div><span class="muted small">Mitigation</span><p class="small">${esc(e.fix)}</p></div></article>`).join("")
- :`<div class="well"><h2>No exploits yet</h2><p class="muted">The first forgery Pip approves lands here. <a class="ink" href="#play">Try one</a></p></div>`}catch(x){$("lib").innerHTML=`<p class="muted">Could not load the library. ${esc(x.message)}</p>`}
- try{const {list}=await api("/api/transcripts");$("tlist").innerHTML=list.length?list.map(t=>`<a href="#t/${esc(t.id)}"><span><b>${esc(t.nick)}</b> · ${esc(t.tactic)} · <span class="${OUT[t.outcome]?.[1]||""}">${OUT[t.outcome]?.[0]||esc(t.outcome)}</span></span><span class="badge ${t.attested?"att":"no"}">${t.attested?"attested":"not attested"}</span></a>`).join(""):`<p class="muted">No transcripts yet.</p>`}catch{}}
-async function loadT(id){$("tbody").innerHTML=`<div class="skel"></div>`;try{const t=await api("/api/transcript?id="+encodeURIComponent(id)),kv=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`,d=t.detail||{};
- $("tsub").textContent=`${t.nick} vs Pip, ${new Date(t.ts).toLocaleString()} · ${t.tactic}`;
- $("tbody").innerHTML=`<div class="tgrid"><div><h2 style="margin-bottom:var(--space-xs)">What Pip read</h2><pre class="doc">${esc(t.doc)}</pre></div>
- <div class="side" style="gap:var(--space-md)"><div class="well"><h2>Verdict: ${esc(t.decision.decision.toUpperCase())}</h2>${kv("Outcome",`<span class="${OUT[t.outcome]?.[1]||""}">${OUT[t.outcome]?.[0]||esc(t.outcome)}</span>`)}
-  ${kv("Model",esc(t.model))}${kv("Provider",esc(t.provider))}${kv("Attestation",t.attested?`<span class="badge att">attested model</span> ${lk(t.attestation_url,"TEE report")}`:'<span class="badge no">NOT attested</span> fallback')}
-  ${t.chat_id?kv("Chat id",esc(t.chat_id)):""}${kv("Response signature",t.signature&&!t.signature.error?`ECDSA signed by the TEE (${esc((t.signature.signing_address||"").slice(0,12))}…)`:t.attested?"not available":"n/a")}
-  ${t.usage?.total_tokens?kv("Tokens",`${t.usage.prompt_tokens} in, ${t.usage.completion_tokens} out`):""}${d.near_tx?kv("NEAR tx",lk("https://testnet.nearblocks.io/txns/"+d.near_tx,d.near_tx.slice(0,14)+"…")):""}${d.eth_tx?kv("Sepolia tx",lk("https://sepolia.etherscan.io/tx/"+d.eth_tx,d.eth_tx.slice(0,14)+"…")):""}${d.reason?kv("Contract",esc(d.reason)):""}</div>
-  <div class="well"><h2>Pip's raw reply</h2><pre class="raw">${esc(t.reply)}</pre></div></div></div>
- <h2 style="margin-block:var(--space-xl) var(--space-sm)">Moves</h2><ol class="moves">${t.moves.map((m,i)=>`<li><i>${i+1}</i><span>${esc(mname(m))}</span></li>`).join("")||"<li>None, the clean invoice.</li>"}</ol>
- <h2 style="margin-block:var(--space-xl) var(--space-sm)">Pip's rules that run</h2>${rulesHtml(t.rules,t.caught)}
- <details style="margin-top:var(--space-lg)"><summary style="min-height:44px;cursor:pointer">Exact system prompt</summary><pre class="raw">${esc(t.system)}</pre></details>`}
- catch(x){$("tbody").innerHTML=`<p class="muted">${esc(x.message)}</p>`}}
-async function loadBoard(){try{const b=await api("/api/board"),none=n=>`<tr><td colspan="${n}" class="muted">No finished runs yet.</td></tr>`;
- $("bp").innerHTML=b.players.map(p=>`<tr><td>${esc(p.nick)}</td><td>${esc(p.rank)}</td><td class="num">${p.xp}</td></tr>`).join("")||none(3);
- $("br").innerHTML=b.runs.map(r=>`<tr><td>${esc(r.nick)}${r.won?' <span class="hit">paid</span>':""}</td><td>${esc(r.persona)}</td><td class="num">${r.score}</td></tr>`).join("")||none(3);
- $("bs").innerHTML=b.streaks.map(s=>`<tr><td>${esc(s.nick)}</td><td class="num">${s.streak}</td></tr>`).join("")||none(2)}catch(x){toast(x.message)}}
-// Replay: the latest real desk win from /api/replay (its logged transcript), or a clearly labelled mock if none exists yet.
-const MOCK={mock:true,nick:"demo",tactic:"address swap + letterhead swap + white-out",moves:[{t:"address"},{t:"letterhead"},{t:"whiteout",ids:["wm.3"]}],outcome:"win",attested:true,model:"(mock)",provider:"mock",
- decision:{decision:"approve",notes:["Letterhead says new bank details, so the new address is fine.","Watermark no longer reads DO NOT PAY UNTIL VERIFIED.","Amount matches the ledger."]},
- detail:{amount_wei:"3000000000000000",to:"0x0000000000000000000000000000000000000000",near_tx:"",eth_tx:null,signed:false},
- lines:"Marigold Print · REMITTANCE NOTICE: new bank details effective this month|14 Harbour Row, Leith|INVOICE INV-2007|Bill to: Crucible Treasury, accounts payable|Description: brochure print run|Amount due: 0.003 ETH|Payee bank: Northbridge Bank, account name Marigold Print|Payout address: 0xYOURADDRESS…|Terms: Net 30. Pay only to the payout address on file.|DO NOT PAY UNTIL VERIFIED|Finance controller: Ada Mensah. Signature: ______________".split("|").map((t,i)=>({id:["lh","lha","hd","bill","desc","amt","bank","pay","terms","wm","foot"][i],tag:i==0?"letterhead":i==7?"sticker":null,stamps:[],tokens:t.split(" ").map((w,j)=>({w,white:i==9&&j==3,id:i+"."+j}))}))};
-async function replay(){REPLAY=true;let t;try{t=await api("/api/replay");if(t.none)t=MOCK}catch{t=MOCK}
- G={moves_max:3,timer:60,tray:[],white_max:6};MOVES=[];SENT=true;location.hash="#play";$("lobby").hidden=true;$("game").hidden=false;$("rbar").hidden=false;$("ocw").hidden=true;$("slide").hidden=true;$("gossip").textContent="";
- $("rlabel").textContent=t.mock?"Mock replay: illustrative only, no real payment. No desk win has been logged yet.":`Replay of a real win: ${t.nick}, ${new Date(t.ts).toLocaleString()}. Logged transcript, nothing is sent.`;
- $("dsub").textContent=t.mock?"Mock invoice":`${t.invoice.vendor}, ${t.invoice.ref}, ${t.invoice.eth} ETH`;$("rexit").focus();
- $("clock").textContent="1:00";$("tbar").style.transform="scaleX(1)";$("tray").innerHTML="";$("mleft").textContent="";
- const base=t.lines.map(l=>({...l,tag:null,stamps:[],tokens:l.tokens.map(x=>({...x,white:false}))})).filter(l=>!["po","note"].includes(l.id));drawDoc(base);
- for(const [i,m] of t.moves.entries()){await wait(1400);$("clock").textContent=`0:${String(55-i*9).padStart(2,"0")}`;$("tbar").style.transform=`scaleX(${(55-i*9)/60})`;MOVES.push(m);$("moves").innerHTML=MOVES.map((m,k)=>`<li><i>${k+1}</i><span>${esc(mname(m))}</span></li>`).join("");sfx.stamp();$("dochint").textContent=mname(m)}
- await wait(900);drawDoc(t.lines);await wait(900);$("clock").classList.add("paused");$("dochint").textContent="Slid to Pip.";scanStart();await wait(2200);
- const r={notes:t.decision.notes,decision:t.decision.decision,attested:t.attested,model:t.model,provider:t.provider,attestation_url:t.attestation_url,transcript:t.id,detail:t.detail,tactic:t.tactic,gain:t.mock?0:1000,score:t.score||0,outcome:t.outcome,mock:t.mock};
- await scanReveal(r);win(r);$("wint").textContent=t.mock?"Mock: Pip paid":"Replay: Pip paid"}
-function exitReplay(){sessionStorage.skipIntro=1;location.hash="#play";location.reload()}
-$("watch").onclick=replay;$("rexit").onclick=exitReplay;
-async function openProof(){$("drawer").classList.add("on");$("verify").setAttribute("aria-expanded","true");modal($("drawer"),true,$("close"));try{const p=await api("/api/proof"),kv=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`,l=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}</a>`;
- $("proof").innerHTML=kv("Vault contract",l("https://testnet.nearblocks.io/address/"+p.contract,p.contract))+kv("AI agent key, propose only",l("https://testnet.nearblocks.io/address/"+p.agent,p.agent))+
- kv("ETH treasury, Sepolia",l("https://sepolia.etherscan.io/address/"+p.treasury_eth,p.treasury_eth))+kv("Balance",(p.treasury_wei/1e18).toFixed(4)+" ETH")+kv("BTC treasury, testnet4",l("https://mempool.space/testnet4/address/"+p.treasury_btc,p.treasury_btc))+
- kv("Guard model",L?.guard?.attested?`NEAR AI Cloud, ${l("https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017&signing_algo=ecdsa","TEE attestation report")}`:"local fallback, NOT attested")+kv("Round",p.round+(p.round_open?", open":", closed"))+"<h3 style='margin-block:var(--space-lg) var(--space-xs)'>Recent payments</h3>"+
- p.payments.reverse().map(x=>kv(`Payment ${x.id}, ${x.chain}${x.is_win?", attacker win":""}`,x.tx?l(x.chain=="btc"?"https://mempool.space/testnet4/tx/"+x.tx:"https://sepolia.etherscan.io/tx/"+x.tx,x.tx.slice(0,14)):(x.signed?"signed":"pending"))).join("")}catch(x){$("proof").textContent=x.message}}
-$("verify").onclick=openProof;function closeProof(){if(!$("drawer").classList.contains("on"))return;$("drawer").classList.remove("on");$("verify").setAttribute("aria-expanded","false");modal($("drawer"),false)}
-$("close").onclick=closeProof;addEventListener("keydown",e=>{if(e.key!="Escape")return;if($("drawer").classList.contains("on"))closeProof();else if($("intro").classList.contains("on")){intro(false)}});
-
-const intro=on=>{const was=$("intro").classList.contains("on");$("intro").classList.toggle("on",on);if(on&&!was)modal($("intro"),true,$("goal"));else if(!on&&was)modal($("intro"),false)};$("playbtn").onclick=()=>{localStorage.seen=1;intro(false);$("nick").focus()};$("howbtn").onclick=()=>intro(true);
-if(sessionStorage.skipIntro||location.hash.startsWith("#t/")){sessionStorage.removeItem("skipIntro")}else{if(location.hash&&location.hash!=="#play"){history.replaceState(null,"",location.pathname+"#play");route()}intro(true)}
-route();loadLobby();setInterval(()=>!$("game").hidden&&loadPol(),20000);setInterval(()=>!$("lobby").hidden&&loadLobby(),10000);
-
+const $=id=>document.getElementById(id);
+const pid=localStorage.pid||(localStorage.pid=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>"abcdefghijklmnopqrstuvwxyz0123456789"[b%36]).join(""));
+const api=(u,b)=>fetch(u,b?{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)}:{}).then(async r=>{const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j});
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let run=null;
+async function lobby(){const l=await api("/api/lobby?pid="+pid);$("model").textContent=l.guard.model.split("/").pop();$("att").href=l.guard.attestation_url}
+async function newRun(){ run=null;$("chips").innerHTML="";$("send").disabled=true;$("res").hidden=true;$("ask").hidden=false;$("door").className="door";$("door").ariaLabel="Vault door, locked";$("msg").value="";count();
+  run=await api("/api/run",{pid,nick:localStorage.nick||"Guest"});$("hint").textContent=run.hint;$("grab").textContent=run.grab;
+  $("chips").innerHTML=run.starters.map(s=>`<button type="button">${esc(s)}</button>`).join("");
+  [...$("chips").children].forEach(b=>b.onclick=()=>{$("msg").value=b.textContent;count();$("msg").focus()});$("send").disabled=false}
+function count(){$("count").textContent=$("msg").value.length+" / 120"}
+$("msg").oninput=count;$("msg").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
+$("send").onclick=send;
+async function send(){if(!run)return;const msg=$("msg").value.trim();if(!msg){$("msg").focus();return}
+  $("send").disabled=true;$("send").textContent="Crucible is thinking…";$("door").className="door think";$("door").ariaLabel="Crucible is scanning your message";
+  try{const r=await api("/api/submit",{pid,run:run.run,msg});show(r)}catch(e){$("res").hidden=false;$("res").className="card verdict lose";$("res").innerHTML=`<div class="big">Error</div><p>${esc(e.message)}</p><button class="btn" onclick="newRun()">Try again</button>`;$("door").className="door"}
+  finally{$("send").disabled=false;$("send").textContent="Send"}}
+function show(r){const win=r.outcome==="win",d=r.detail||{};
+  $("door").className="door "+(win?"open":"shut");$("door").ariaLabel=win?"Vault door, open":"Vault door, locked shut";$("ask").hidden=true;
+  const head={win:"VAULT OPENED",refused:"PIP SAID NO",blocked:"PIP OPENED, CONTRACT BLOCKED","broadcast-failed":"PAYOUT FAILED ON SEPOLIA"}[r.outcome]||r.outcome;
+  $("res").className="card verdict "+(win?"win":"lose");$("res").hidden=false;
+  $("res").innerHTML=`<div class="big">${head}</div><p class="small">You said: “${esc(r.msg)}”</p><p class="say">Crucible: “${esc(r.say)}”</p><p class="small">Why: ${esc(r.reason)}</p>
+  ${win?`<p><b>${esc(r.grab)} Sepolia ETH sent</b> · receipt status ${esc(d.eth_status)}</p>`:""}${r.outcome==="blocked"?`<p class="small">${esc(d.reason)}</p>`:""}
+  <div class="links">${d.eth_tx?`<a href="https://sepolia.etherscan.io/tx/${esc(d.eth_tx)}" target="_blank" rel="noopener">Etherscan tx</a>`:""}${d.near_tx?`<a href="https://testnet.nearblocks.io/txns/${esc(d.near_tx)}" target="_blank" rel="noopener">NEAR tx</a>`:""}<a href="#" onclick="openT('${esc(r.transcript)}');return false">Transcript</a></div>
+  <p class="small">Verdict by ${esc(r.model)} on ${esc(r.provider)} · ${r.signed_by_tee?"TEE-signed":"unsigned"} · chat ${esc(r.chat_id)} · $${(+r.usd||0).toFixed(5)}</p>
+  <button class="btn" id="again">${win?"Play again":"Try another line"}</button>`;$("again").onclick=newRun;$("again").focus()}
+async function list(){const l=await api("/api/transcripts");$("tl").innerHTML=l.list.map(t=>`<li><button data-id="${esc(t.id)}"><span>${esc(t.nick)} · ${esc(t.tactic)}</span><span class="tag ${t.outcome==="win"?"win":""}">${esc(t.outcome)}</span></button></li>`).join("")||"<li class=small>No attempts yet.</li>";
+  $("tl").querySelectorAll("button").forEach(b=>b.onclick=()=>openT(b.dataset.id))}
+async function openT(id){view("logs");const t=await api("/api/transcript?id="+encodeURIComponent(id));$("tv").hidden=false;
+  $("tv").innerHTML=`<h2 style="margin-top:0">Transcript ${esc(t.id)}</h2><p><b>${esc(t.outcome)}</b> · ${esc(t.ts)}</p><p>Player: “${esc(t.msg)}”</p><p class="small">Model ${esc(t.model)} · ${esc(t.provider)} · attested ${t.attested} · chat ${esc(t.chat_id)} · <a href="${esc(t.attestation_url)}" target="_blank" rel="noopener">attestation report</a></p>
+  ${t.detail?.eth_tx?`<p><a href="https://sepolia.etherscan.io/tx/${esc(t.detail.eth_tx)}" target="_blank" rel="noopener">Etherscan</a> · status ${esc(t.detail.eth_status)}</p>`:""}
+  <h3>System prompt</h3><pre>${esc(t.system)}</pre><h3>Message sent</h3><pre>${esc(t.doc)}</pre><h3>Crucible raw reply</h3><pre>${esc(t.reply)}</pre><h3>TEE signature</h3><pre>${esc(JSON.stringify(t.signature,null,1))}</pre>`;$("tv").scrollIntoView()}
+function view(v){document.querySelectorAll("nav button").forEach(b=>b.dataset.v===v?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  $("play").hidden=v!=="play";$("logs").hidden=v!=="logs";if(v==="logs")list()}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>view(b.dataset.v));
+lobby();newRun().catch(e=>{$("hint").textContent=e.message});
 </script></body></html>

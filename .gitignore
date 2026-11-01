@@ -12,3 +12,4 @@ web/game.json
 agent/*.log
 .crucible/
 *.pem
+web/game.archive.json

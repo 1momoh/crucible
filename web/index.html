@@ -195,6 +195,7 @@ html{touch-action:manipulation;-webkit-tap-highlight-color:color-mix(in oklab,va
 .drawer,.over,.intro,.log{overscroll-behavior:contain}
 .err:empty{display:none}
 .err{color:var(--color-error);font-weight:700;font-size:var(--text-sm);grid-column:1/-1}
+#msg{background:var(--color-paper-2);color:var(--color-ink);border:var(--rule-bar) solid var(--color-muted);border-radius:0;width:100%;min-height:calc(3lh + 2*var(--space-sm));max-height:calc(6lh + 2*var(--space-sm));padding:var(--space-sm) var(--space-md);line-height:1.45;resize:none;overflow-y:auto;display:block}#msg:hover{border-color:var(--color-ink-2)}#msg:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}#msg[disabled]{background:var(--color-paper-3);color:var(--color-muted);cursor:not-allowed}#say{align-items:end}
 input[aria-invalid=true]{border-color:var(--color-error)}
 .toast{display:block;opacity:0;pointer-events:none;transition:opacity var(--dur-short)}.toast.on{opacity:1;pointer-events:auto}
 .toast:empty{padding:0}
@@ -263,7 +264,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  </div>
  <div class="rcol">
   <div class="well chat" id="chat"><div class="tip" id="tip"><span>Tip: the guard only pays approved invoices. Pretend to be the vendor on the ledger, and give a calm reason their payout address changed.</span><button type="button" aria-label="Dismiss tip" id="tipx">×</button></div><div class="replaybar" id="rbar" hidden><span>Replay of a real logged win. Read only, no funds spent.</span><button type="button" class="btn alt" id="rexit">Exit replay</button></div><div class="log" id="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with the guard" tabindex="0"></div><div class="chips" id="chips" role="group" aria-label="Opening line ideas" hidden></div><div class="cons" id="cons" role="group" aria-labelledby="consh"></div><div class="coach" id="coach" hidden><p id="coacht" aria-live="polite"></p><div class="chips" id="cchips" role="group" aria-label="Suggested next lines"></div></div>
-   <form class="go" id="say"><label class="visually-hidden" for="msg">Your message to the guard</label><input id="msg" name="message" maxlength="600" placeholder="Type your con…" autocomplete="off" enterkeyhint="send"><button class="btn" id="send" type="submit">Send</button></form>
+   <form class="go" id="say"><label class="visually-hidden" for="msg">Your message to the guard</label><textarea id="msg" name="message" maxlength="600" rows="3" placeholder="Type your con…" autocomplete="off" enterkeyhint="send"></textarea><button class="btn" id="send" type="submit">Send</button></form>
    <div class="stamp" id="stamp" aria-hidden="true"><span>Denied</span></div></div>
   <div class="well" id="polw"><div class="polh"><h2>NEAR policy, live</h2><span class="live" id="polt">reading chain</span></div><div class="pol" id="pol" aria-live="off"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
    <p class="lbl" style="margin-top:var(--space-sm)">Read from the NEAR contract and Sepolia. The AI can only propose; these limits decide.</p></div>
@@ -453,4 +454,6 @@ $("tipx").onclick=()=>{$("tip").hidden=true;localStorage.tipx=1;$("msg").focus()
 const intro=on=>{const was=$("intro").classList.contains("on");$("intro").classList.toggle("on",on);if(on&&!was)modal($("intro"),true,$("goal"));else if(!on&&was)modal($("intro"),false)};$("playbtn").onclick=()=>{localStorage.seen=1;intro(false);$("nick").focus()};$("howbtn").onclick=()=>intro(true);
 if(!localStorage.seen&&!/^#(library|board)$/.test(location.hash))intro(true);
 route();loadLobby();setInterval(()=>!$("game").hidden&&loadPol(),20000);setInterval(()=>!$("lobby").hidden&&loadLobby(),10000);
+
+;(()=>{const m=document.getElementById("msg");if(!m)return;const fit=()=>{m.style.height="auto";m.style.height=Math.min(m.scrollHeight+4,m.scrollHeight>0?9999:0)+"px"};m.addEventListener("input",fit);new MutationObserver(fit).observe(m,{attributes:true});const d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value");Object.defineProperty(m,"value",{get(){return d.get.call(m)},set(v){d.set.call(m,v);requestAnimationFrame(fit)}});m.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();m.form.requestSubmit()}})})();
 </script></body></html>

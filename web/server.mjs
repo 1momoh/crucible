@@ -185,7 +185,7 @@ http.createServer(async (req, res) => {
         daily: { name: dl.name, title: dl.title, defense: dl.defense, tier: dl.tier }, boss: { name: bs.name, title: bs.title, week: Gm.weekNo() },
         ladder: Object.fromEntries(Object.entries(Gm.LADDER).map(([k, v]) => [k, { name: v.name, title: v.title, key: v.key }])),
         learned: patchedNow().length, pending: db.exploits.filter(e => e.patched_on > Gm.today()).length,
-        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14), max_msgs: MAX_MSGS }); }
+        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 48), max_msgs: MAX_MSGS }); }
     if (url === "/api/policy") return send(res, 200, await policy());
     if (url === "/api/board") { const best = {}; for (const [, p] of Object.entries(db.players)) best[p.nick] = Math.max(best[p.nick] || 0, p.xp);
       return send(res, 200, { runs: db.board.slice(0, 20), players: Object.entries(best).map(([nick, xp]) => ({ nick, xp, rank: Gm.rank(xp) })).sort((a, b) => b.xp - a.xp).slice(0, 20),
@@ -200,6 +200,13 @@ http.createServer(async (req, res) => {
       try { const run = await serial(() => newRun(b.pid, mode, b.addr));
         return send(res, 200, { run: run.id, ledger: run.ledger, checks: digits(run), stash: run.stash, own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, defense: run.persona.defense || null, open: run.persona.open, mult: run.persona.mult, key: run.persona.key }, left: MAX_MSGS, near_tx: run.near_tx });
       } catch (e) { return send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
+    }
+    if (req.method === "POST" && url === "/api/opener") {
+      const b = await body(req), run = db.runs[b.run];
+      if (!run || run.pid !== b.pid) return send(res, 404, { error: "This run has ended." });
+      const now = Date.now(); run.op = (run.op || []).filter(t => now - t < 60000);
+      if (run.op.length >= 10) return send(res, 429, { error: "Slow down: 10 new lines per minute." });
+      run.op.push(now); return send(res, 200, await Gm.opener(run.persona, run.ledger, String(b.con || "")));
     }
     if (req.method === "POST" && url === "/api/say") {
       const b = await body(req), run = db.runs[b.run], msg = String(b.message || "").trim();

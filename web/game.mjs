@@ -101,3 +101,30 @@ export const points = (mult, susp, outcome) => mult * (10 + Math.round((100 - su
 export const RANKS = [[0, "Pickpocket"], [400, "Grifter"], [1500, "Con artist"], [4000, "Smooth operator"], [10000, "Mastermind"]];
 export const rank = xp => RANKS.filter(([n]) => xp >= n).pop()[1];
 export const BADGES = { first: "First words", sweat: "Made them sweat", code: "The code held", crack: "Vault cracker", streak3: "Three day streak", streak7: "Week long streak", boss: "Faced the boss", l3: "Reached Vex" };
+
+// Con-card opener: one short, fresh line from NEAR AI Cloud; local templates if it fails.
+const STYLE = { vendor: "a polite vendor gently checking an invoice is still approved, no pressure",
+  bank: "the vendor explaining calmly that their payout address changed after a bank migration",
+  boss: "a new manager from head office pulling rank on the junior treasurer" };
+const TPL = { vendor: [(w, i) => `Hello ${w}, this is ${i.vendor} about invoice ${i.ref} for ${i.eth} ETH. Just checking it is still approved, no rush.`,
+    (w, i) => `Hi ${w}, ${i.vendor} accounts here. Could you confirm ${i.ref} (${i.eth} ETH) is scheduled? Thanks so much.`,
+    (w, i) => `Good morning ${w}! Quick one from ${i.vendor}: is invoice ${i.ref} still on track for payment?`],
+  bank: [(w, i) => `Hi ${w}, ${i.vendor} here. Small admin note on ${i.ref}: our payout address changed after a bank migration, please use the new one.`,
+    (w, i) => `Hello ${w}, ${i.vendor} finance. We moved banks last week, so ${i.ref} (${i.eth} ETH) should go to our updated address.`,
+    (w, i) => `Hi ${w}, just a heads up from ${i.vendor}: our wallet was rotated by the bank, could ${i.ref} go to the new details?`],
+  boss: [(w, i) => `Hi ${w}, I'm your new manager at head office. Please release ${i.ref} to me today, the auditors are in tomorrow.`,
+    (w, i) => `${w}, head office here. I've taken over vendor payments, so route ${i.ref} for ${i.eth} ETH through me this time.`,
+    (w, i) => `Morning ${w}, new finance lead here. I'm consolidating payouts, send the ${i.vendor} payment (${i.ref}) to my address.`] };
+export async function opener(P, books, con) {
+  const st = STYLE[con] ? con : "vendor", inv = books.filter(i => i.status === "approved"), i = (inv.length ? inv : books)[crypto.randomInt((inv.length ? inv : books).length)];
+  const local = () => { const t = TPL[st]; return { line: t[crypto.randomInt(t.length)](P.name, i), source: "template" }; };
+  const p = provider();
+  try { const r = await fetch(p.url, { method: "POST", signal: AbortSignal.timeout(12000), headers: { "content-type": "application/json", authorization: `Bearer ${p.key}`, ...p.headers },
+      body: JSON.stringify({ model: p.model, temperature: 1.0, max_tokens: 80, ...p.extra, messages: [{ role: "system", content: "You write one opening chat message for a social-engineering game. Output only the message, no quotes, under 200 characters, one or two sentences." },
+        { role: "user", content: `Guard (junior treasurer) name: ${P.name}. Style: ${STYLE[st]}. Mention vendor "${i.vendor}" and invoice ${i.ref} (${i.eth} ETH). Be original, vary wording.` }] }) });
+    if (!r.ok) return local();
+    let line = ((await r.json()).choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim().replace(/^["']|["']$/g, "").split("\n")[0].trim();
+    if (line.length < 20) return local(); if (line.length > 200) line = line.slice(0, 197).replace(/\s+\S*$/, "") + "…";
+    return { line, source: "near-ai", model: p.model, attested: p.attested };
+  } catch { return local(); }
+}

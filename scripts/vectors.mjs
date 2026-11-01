@@ -1,0 +1,15 @@
+import { serializeTransaction, keccak256 } from "viem";
+import * as bitcoin from "bitcoinjs-lib";
+const tx = { chainId: 11155111, type: "eip1559", nonce: 7, to: "0x1111111111111111111111111111111111111111", value: 1000000000000000n, gas: 21000n, maxFeePerGas: 2000000000n, maxPriorityFeePerGas: 1000000000n };
+console.log("EVM_UNSIGNED", serializeTransaction(tx)); console.log("EVM_HASH", keccak256(serializeTransaction(tx)));
+const pkh = Buffer.from("45 9c2e0ef56b249f677820046604275828 6b8416".replace(/ /g,""),"hex");
+const NET = bitcoin.networks.testnet;
+const fromOut = bitcoin.payments.p2wpkh({hash: Buffer.from("459c2e0ef56b249f6778200466042758286b8416","hex")}).output;
+const toOut = Buffer.from("0014"+"22".repeat(20),"hex");
+const t = new bitcoin.Transaction(); t.version=2;
+const txid="ab".repeat(16)+"cd".repeat(16);
+t.addInput(Buffer.from(txid,"hex").reverse(), 1, 0xffffffff);
+t.addOutput(toOut, 20000); t.addOutput(fromOut, 100000-20000-300);
+const sc = bitcoin.payments.p2pkh({hash: fromOut.slice(2)}).output;
+console.log("BTC_SIGHASH", t.hashForWitnessV0(0, sc, 100000, 1).toString("hex"));
+console.log("BTC_UNSIGNED", t.toHex());

@@ -1,14 +1,17 @@
 import { connect, keyStores, KeyPair } from "near-api-js";
 import fs from "fs";
 export const G = 300000000000000n;
+export const GAME = "crucible-11011136.testnet";
+const D = "/root/.crucible/";
+// kind "" = game/owner account (full key). kind "agent" = the agent's OWN account, holding only a function-call key.
 export async function loadAccount(kind = "") {
-  const file = fs.readdirSync("/root/.crucible").find(f => f.endsWith(".testnet.json") && !f.includes(".agent"));
-  const cred = JSON.parse(fs.readFileSync("/root/.crucible/" + file));
-  if (!cred.account_id.endsWith(".testnet")) throw new Error("testnet only");
-  let key = cred.private_key;
-  if (kind === "agent") key = JSON.parse(fs.readFileSync("/root/.crucible/agent-key.json")).private_key;
-  const ks = new keyStores.InMemoryKeyStore(); await ks.setKey("testnet", cred.account_id, KeyPair.fromString(key));
+  let id, key;
+  if (kind === "agent") { const c = JSON.parse(fs.readFileSync(D + "agent-account.json")); id = c.account_id; key = c.private_key; }
+  else { const c = JSON.parse(fs.readFileSync(D + GAME + ".json")); id = c.account_id; key = c.private_key; }
+  if (!id.endsWith(".testnet")) throw new Error("testnet only");
+  const ks = new keyStores.InMemoryKeyStore(); await ks.setKey("testnet", id, KeyPair.fromString(key));
   const near = await connect({ networkId: "testnet", nodeUrl: "https://rpc.testnet.near.org", keyStore: ks });
-  return near.account(cred.account_id);
+  return near.account(id);
 }
+export const view = (a, m, args = {}) => a.viewFunction({ contractId: GAME, methodName: m, args });
 export const errMsg = e => (e?.message || String(e)).match(/Smart contract panicked: [^"\\]+|unreachable/)?.[0] || (e?.message||"").slice(0,200);

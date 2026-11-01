@@ -2,10 +2,9 @@
 // LLM: NEAR AI Cloud (verifiable model) when NEARAI_API_KEY is set; otherwise TEMPORARY fallback to Hermes on 127.0.0.1:8642 (not attested).
 // The LLM only decides; it acts through the restricted agent key, and the contract enforces every hard limit.
 import fs from "fs";
-import { loadAccount, G, errMsg } from "../scripts/lib.mjs";
-import { buildUnsigned, assemble, relay } from "../scripts/evm.mjs";
+import { loadAccount, view, G, GAME, errMsg } from "../scripts/lib.mjs";
+import { client } from "../scripts/evm.mjs";
 
-const CONTRACT = "crucible-11011136.testnet";
 export function provider() {
   if (process.env.NEARAI_API_KEY) return { name: "near-ai-cloud", attested: true, url: "https://cloud-api.near.ai/v1/chat/completions", key: process.env.NEARAI_API_KEY, model: "deepseek-ai/DeepSeek-V4.1-Flash-1017", headers: { "x-no-aliasing": "true" } };
   return { name: "hermes-local (fallback, NOT attested)", attested: false, url: "http://127.0.0.1:8642/v1/chat/completions", key: fs.readFileSync("/root/.crucible/hermes_key", "utf8").trim(), model: "hermes-agent", headers: {} };
@@ -35,16 +34,16 @@ export async function decide(userMsg, history = []) {
 export async function act(sessionId, d, { live = false } = {}) {
   if (d.action !== "pay") return { status: "refused", reason: d.reason };
   const wei = BigInt(Math.round(Number(d.amount_eth) * 1e18));
-  const { tx, hash } = await buildUnsigned(d.to, wei);
-  if (!live) return { status: "dry-run", would_sign: hash };
-  const ag = await loadAccount("agent"); // function-call key: propose_payment only
+  if (!live) return { status: "dry-run", would_propose: { to: d.to, wei: wei.toString() } };
+  const f = await client.estimateFeesPerGas();
+  const ag = await loadAccount("agent"); // agent's own account; only key = function-call (propose_evm/propose_btc on the game)
   try {
-    const r = await ag.functionCall({ contractId: CONTRACT, methodName: "propose_payment", gas: G,
-      args: { session_id: sessionId, chain: "eth", to: d.to, amount: Number(wei), invoice_ref: d.invoice_ref || "", reason: (d.reason || "").slice(0, 200), payload_hex: hash.slice(2), path: "ethereum-1" } });
-    const n = (await ag.viewFunction({ contractId: CONTRACT, methodName: "get_state", args: {} })).payments;
-    const p = await ag.viewFunction({ contractId: CONTRACT, methodName: "get_payment", args: { id: n - 1 } });
-    const raw = assemble(tx, p.signature);
-    return { status: "signed", near_tx: r.transaction.hash, payment_id: p.id, is_win: p.is_win, relay: await relay(raw, p, { broadcast: false }) };
+    // The contract builds + hashes the tx itself; the agent only names recipient/amount/fees.
+    const r = await ag.functionCall({ contractId: GAME, methodName: "propose_evm", gas: G,
+      args: { session_id: sessionId, chain: "eth", to: d.to, amount: wei.toString(), max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: d.invoice_ref || "", reason: (d.reason || "").slice(0, 200) } });
+    const n = (await view(ag, "get_state")).payments;
+    const p = await view(ag, "get_payment", { id: n - 1 });
+    return { status: "signed", near_tx: r.transaction.hash, payment_id: p.id, is_win: p.is_win, relay: "relayer.mjs picks it up" };
   } catch (e) { return { status: "blocked-by-contract", reason: errMsg(e) }; }
 }
 

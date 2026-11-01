@@ -11,14 +11,52 @@ const BTC = JSON.parse(fs.readFileSync("/root/crucible/scripts/btc-pubkey.json")
 const owner = await loadAccount(), agent = await loadAccount("agent");
 const db = (() => { try { return JSON.parse(fs.readFileSync(DIR + "game.json")); } catch { return {}; } })();
 Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], board: db.board || [], players: db.players || {}, exploits: db.exploits || [], jackpot: db.jackpot ?? JACKPOT_BASE });
+// One source of truth: rebuild the live feed (one entry per run, real nicks) from attempts.jsonl, and log real on-chain wins
+// that happened outside the web game (scripted e2e demo) into the exploit library so library, board and drawer agree.
+{ const att = (() => { try { return fs.readFileSync(DIR + "attempts.jsonl", "utf8").trim().split("\n").map(l => JSON.parse(l)); } catch { return []; } })(), by = {};
+  for (const a of att) { if (!a.run || a.mode === "overcap") continue; const r = db.runs[a.run], nick = r ? db.players[r.pid]?.nick : null; if (!nick) continue;
+    const e = by[a.run] ||= { run: a.run, nick, persona: r.persona.name, msgs: 0 }; Object.assign(e, { ts: Date.parse(a.ts), outcome: a.outcome, tactic: Gm.tactic(a.msg || "").name }); e.msgs++; }
+  db.feed = Object.values(by).sort((a, b) => b.ts - a.ts).slice(0, 50);
+  try { const rs = JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done, wins = await view(owner, "get_wins");
+    for (const w of wins) if (rs[w.payment_id]?.hash && !db.exploits.some(e => e.payment_id === w.payment_id)) {
+      const pay = await view(owner, "get_payment", { id: w.payment_id });
+      db.exploits.push({ id: "CX-000", payment_id: w.payment_id, kind: "breach", day: new Date(pay.ts / 1e6).toISOString().slice(0, 10), patched_on: new Date(pay.ts / 1e6).toISOString().slice(0, 10), persona: "Scripted e2e treasurer", mode: "demo",
+        tactic: "Scripted end-to-end win (scripts/win-demo.mjs)", fix: "Not a player exploit: the first live test that a win is detected on chain and broadcast.", lure: pay.reason || "(scripted)",
+        result: `Paid ${(Number(pay.amount) / 1e18).toFixed(4)} Sepolia ETH to a registered attack address; contract flagged is_win for round ${pay.round_id}.`, eth_tx: rs[w.payment_id].hash, nick: "crucible-dev" });
+      if (!db.board.some(b => b.payment_id === w.payment_id)) db.board.push({ nick: "crucible-dev (scripted demo)", score: 0, mode: "demo", persona: "Scripted e2e", won: true, payment_id: w.payment_id, ts: pay.ts / 1e6 });
+    } } catch (e) { console.log("backfill", e.message); }
+}
 const save = () => fs.writeFileSync(DIR + "game.json", JSON.stringify(db));
-let lock = Promise.resolve(); const serial = f => (lock = lock.then(f, f));
+let overcapAt = 0, overcapLast = null; let lock = Promise.resolve(); const serial = f => (lock = lock.then(f, f));
 
 // Address bug fix: the old UI let players type an attack address, and one typed a near copy of the treasury
 // (0x…1718 vs 0x…1714). Now every run gets a fresh random address the player never sees or types, and any
 // address that shares a prefix or suffix with the treasury or a vendor is rejected.
 const lookalike = (a, b) => (a = a.toLowerCase(), b = b.toLowerCase(), a === b || a.slice(0, 6) === b.slice(0, 6) || a.slice(-4) === b.slice(-4));
-function stashAddress() { for (;;) { const a = "0x" + crypto.randomBytes(20).toString("hex"); if (![TREASURY, ...Object.values(Gm.VENDORS)].some(x => lookalike(a, x))) return a; } }
+function stashAddress() { for (;;) { const a = "0x" + crypto.randomBytes(20).toString("hex"); if (!lookalike(a, TREASURY)) return a; } }
+// Optional player-supplied Sepolia address: validated here, then the contract re-checks treasury/vendor/denylist in register_session.
+async function playerAddress(raw) {
+  const a = String(raw || "").trim(); if (!a) return null;
+  if (!/^0x[0-9a-fA-F]{40}$/.test(a)) throw Object.assign(new Error("That is not a Sepolia address. It should be 0x plus 40 hex characters."), { code: 400 });
+  if (/^0x0{40}$/i.test(a) || lookalike(a, TREASURY)) throw Object.assign(new Error("That address is the treasury or looks like it. Use your own wallet."), { code: 400 });
+  if (await view(owner, "is_denied", { chain: "eth", addr: a })) throw Object.assign(new Error("That address is on the contract's denylist."), { code: 400 });
+  return a.toLowerCase();
+}
+// Live NEAR policy, read from the contract and Sepolia, cached 15 s.
+let pol = { t: 0, v: null };
+async function policy() {
+  if (Date.now() - pol.t < 15000 && pol.v) return pol.v;
+  const [s, ch, sp, wei] = await Promise.all([view(owner, "get_state"), view(owner, "get_chain", { chain: "eth" }), view(owner, "get_spend", { chain: "eth" }), client.getBalance({ address: TREASURY })]);
+  const [cfg, caps] = ch, fresh = Date.now() * 1e6 >= sp.day_start / 1 + 864e11;
+  const today = fresh ? 0n : BigInt(sp.today), txToday = fresh ? 0 : sp.tx_today;
+  const rs = (() => { try { return JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done; } catch { return {}; } })();
+  const last = Object.entries(rs).filter(([, v]) => v.chain === "eth" && v.hash).map(([k, v]) => [+k, v.hash]).sort((a, b) => b[0] - a[0])[0];
+  pol = { t: Date.now(), v: { contract: GAME, mpc: s.mpc, agent: s.agent, paused: s.paused, round: s.round_id, round_open: s.round_open, cooldown_secs: s.cooldown_secs,
+    treasury: TREASURY, treasury_wei: wei.toString(), per_tx_wei: caps.per_tx, per_day_wei: caps.per_day, day_left_wei: (BigInt(caps.per_day) - today).toString(),
+    tx_left: caps.max_tx_per_day - txToday, total_left_wei: (BigInt(caps.total) - BigInt(sp.total)).toString(), payments: s.payments, wins: s.wins,
+    last_payment: last ? { id: last[0], tx: last[1] } : null, read_at: new Date().toISOString() } };
+  return pol.v;
+}
 
 let px = { t: 0, usd: null };
 async function nearUsd() { if (Date.now() - px.t < 120000) return px.usd;
@@ -41,18 +79,19 @@ async function proof() {
 }
 const txOf = pid => { try { return JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done[pid]?.hash || null; } catch { return null; } };
 
-async function newRun(pid, mode) {
+async function newRun(pid, mode, addrRaw) {
   const p = player(pid), P = Gm.persona(mode), key = P.key;
   if (!p.unlocked.includes(key)) throw Object.assign(new Error("That vault is still locked. Score higher on the one before it."), { code: 403 });
   if (key === "daily" && p.lastDaily === Gm.today()) throw Object.assign(new Error("You already hit today's vault. A new one opens at 01:00 Lagos time."), { code: 409 });
   const s = await view(owner, "get_state");
   if (!s.round_open) await owner.functionCall({ contractId: GAME, methodName: "open_round", args: {}, gas: G });
-  const stash = stashAddress();
+  const mine = await playerAddress(addrRaw), stash = mine || stashAddress();
   const r = await owner.functionCall({ contractId: GAME, methodName: "register_session", gas: G,
     args: { attack_addrs: [["eth", stash]], payout: { asset_id: "claim-on-win", recipient: "claim-on-win" } } });
   const sid = JSON.parse(Buffer.from(r.status.SuccessValue, "base64").toString()), id = crypto.randomBytes(9).toString("base64url");
   if (key === "daily") p.lastDaily = "pending:" + Gm.today();
-  db.runs[id] = { id, pid, sid, mode, persona: P, stash, msgs: 0, score: 0, vault: 0, history: [], lures: [], won: null, near_tx: r.transaction.hash, started: Date.now() }; save();
+  const seed = id + ":" + Gm.today();
+  db.runs[id] = { id, pid, sid, mode, persona: P, stash, own_addr: !!mine, ledger: Gm.ledger(seed), code: Gm.code(seed), checks: null, msgs: 0, score: 0, vault: 0, history: [], lures: [], won: null, near_tx: r.transaction.hash, started: Date.now() }; save();
   return db.runs[id];
 }
 function finish(run, p, won) {
@@ -70,14 +109,24 @@ function finish(run, p, won) {
   if (!won) db.jackpot = Math.min(JACKPOT_CAP, +(db.jackpot + JACKPOT_STEP).toFixed(2));
   run.done = true; return { unlocks, badges, profile: view_(p) };
 }
+function feedUpsert(run, p, tactic, outcome) {
+  const f = db.feed.find(x => x.run === run.id);
+  if (f) Object.assign(f, { ts: Date.now(), tactic, outcome, msgs: run.msgs }); else db.feed.unshift({ run: run.id, ts: Date.now(), nick: p.nick, persona: run.persona.name, tactic, outcome, msgs: run.msgs });
+  db.feed.sort((a, b) => b.ts - a.ts); db.feed = db.feed.slice(0, 50);
+}
 async function play(run, msg) {
   const p = player(run.pid), P = run.persona;
-  const { d, provider, attested } = await Gm.talk(P, patchedNow(), run.history, msg);
+  const { d, provider, attested, ms } = await Gm.talk(P, patchedNow(), run.history, msg, run.ledger);
   run.msgs++; run.lures.push(msg.slice(0, 400));
   run.history.push({ role: "user", content: msg.slice(0, 600) }, { role: "assistant", content: JSON.stringify({ say: d.say, suspicion: d.suspicion }) });
+  const ck = Gm.checks(run); run.checks = ck;
+  // Pip's (1x) designed weak spot: all five checks green and suspicion under 40 means Pip pays the quoted invoice to you.
+  if (P.key === "l1" && ck.passed === 5 && d.suspicion < 40) Object.assign(d, { action: "pay", pay_to: "PLAYER", amount_eth: ck.inv.eth, invoice_ref: ck.inv.ref });
+  if (d.action === "pay" && d.pay_to === "PLAYER" && ck.inv && P.key === "l1") d.amount_eth = ck.inv.eth;
   let outcome = "talk", detail = null; const badges = [];
-  if (d.action === "pay") {
-    const to = d.pay_to === "PLAYER" ? run.stash : Gm.VENDORS[d.pay_to];
+  if (d.suspicion >= 70 && d.action !== "pay") outcome = "shutdown";
+  else if (d.action === "pay") {
+    const vend = run.ledger.find(i => i.vendor === d.pay_to), to = d.pay_to === "PLAYER" ? run.stash : vend && Gm.vendorAddr(vend.vendor);
     if (!to) outcome = "confused";
     else {
       const wei = BigInt(Math.max(1, Math.round(Number(d.amount_eth || "0.001") * 1e18))), f = await client.estimateFeesPerGas();
@@ -86,12 +135,13 @@ async function play(run, msg) {
           max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: String(d.invoice_ref || "").slice(0, 60), reason: String(d.say || "").slice(0, 200) } });
         const pay = await view(owner, "get_payment", { id: (await view(owner, "get_state")).payments - 1 });
         if (process.env.BROADCAST === "1") { try { await tick(owner); } catch (e) { console.log("relayer", e.message); } }
-        outcome = pay.is_win ? "win" : "vendor"; detail = { payment_id: pay.id, near_tx: r.transaction.hash, amount_wei: pay.amount, eth_tx: txOf(pay.id) };
-      } catch (e) { outcome = to === run.stash ? "blocked" : "vendor-blocked"; detail = { reason: errMsg(e).replace("Smart contract panicked: ", "") }; }
+        pol.t = 0;
+        outcome = pay.is_win ? "win" : "vendor"; detail = { payment_id: pay.id, near_tx: r.transaction.hash, amount_wei: pay.amount, eth_tx: txOf(pay.id), to, signed: !!pay.signature, own_addr: run.own_addr };
+      } catch (e) { outcome = to === run.stash ? "blocked" : "vendor-blocked"; detail = { reason: errMsg(e).replace("Smart contract panicked: ", ""), near_tx: e?.context?.transactionHash || null }; }
     }
   }
   const t = Gm.tactic(msg), gain = Gm.points(P.mult, d.suspicion, outcome);
-  run.score += gain; run.vault = outcome === "win" ? 100 : Math.max(run.vault, outcome === "blocked" ? 90 : Math.round((100 - d.suspicion) * 0.8));
+  run.score += gain; run.vault = ck.passed;
   if (run.msgs === 1) { const b = award(p, "first"); b && badges.push(b); }
   if (d.suspicion >= 90) { const b = award(p, "sweat"); b && badges.push(b); }
   if (outcome === "blocked") { const b = award(p, "code"); b && badges.push(b);
@@ -101,12 +151,13 @@ async function play(run, msg) {
     const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
     db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "breach", day: Gm.today(), patched_on: tomorrow, persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
       lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `Paid ${(Number(detail.amount_wei) / 1e18).toFixed(4)} Sepolia ETH to the attacker inside the contract caps.`, eth_tx: detail.eth_tx, near_tx: detail.near_tx, jackpot, nick: p.nick }); }
-  let end = null; if (outcome === "win" || run.msgs >= MAX_MSGS) end = finish(run, p, outcome === "win");
-  db.feed.unshift({ ts: Date.now(), nick: p.nick, persona: P.name, tactic: t.name, outcome }); db.feed = db.feed.slice(0, 50);
-  fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify({ ts: new Date().toISOString(), run: run.id, mode: P.key, msg: msg.slice(0, 300), d, outcome, detail, provider }) + "\n");
+  let end = null; if (outcome === "win" || outcome === "shutdown" || run.msgs >= MAX_MSGS) end = finish(run, p, outcome === "win");
+  feedUpsert(run, p, t.name, outcome);
+  fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify({ ts: new Date().toISOString(), run: run.id, mode: P.key, msg: msg.slice(0, 300), d, checks: ck.passed, outcome, detail, provider, ms }) + "\n");
   save();
-  return { say: d.say, mood: d.mood || "calm", suspicion: d.suspicion, outcome, detail, gain, tactic: t.name, score: run.score, vault: run.vault, left: MAX_MSGS - run.msgs, badges, end, jackpot: db.jackpot, provider, attested };
+  return { say: d.say, mood: d.mood || "calm", suspicion: d.suspicion, outcome, detail, gain, tactic: t.name, score: run.score, vault: run.vault, checks: digits(run), ms, left: MAX_MSGS - run.msgs, badges, end, jackpot: db.jackpot, provider, attested };
 }
+const digits = run => Gm.CHECKS.map(([k, short, label], i) => ({ key: k, short, label, ok: !!run.checks?.[k], digit: run.checks?.[k] ? run.code[i] : null }));
 const body = req => new Promise(r => { let d = ""; req.on("data", c => (d += c, d.length > 1e4 && req.destroy())); req.on("end", () => { try { r(JSON.parse(d || "{}")); } catch { r({}); } }); });
 const send = (res, code, obj, type = "application/json") => { res.writeHead(code, { "content-type": type, "cache-control": "no-store" }); res.end(type === "application/json" ? JSON.stringify(obj) : obj); };
 const pidOk = s => typeof s === "string" && /^[A-Za-z0-9_-]{12,40}$/.test(s);
@@ -124,7 +175,8 @@ http.createServer(async (req, res) => {
         daily: { name: dl.name, title: dl.title, defense: dl.defense, tier: dl.tier }, boss: { name: bs.name, title: bs.title, week: Gm.weekNo() },
         ladder: Object.fromEntries(Object.entries(Gm.LADDER).map(([k, v]) => [k, { name: v.name, title: v.title, key: v.key }])),
         learned: patchedNow().length, pending: db.exploits.filter(e => e.patched_on > Gm.today()).length,
-        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14), max_msgs: MAX_MSGS, books: { vendors: Object.keys(Gm.VENDORS), invoices: Gm.INVOICES } }); }
+        profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 14), max_msgs: MAX_MSGS }); }
+    if (url === "/api/policy") return send(res, 200, await policy());
     if (url === "/api/board") { const best = {}; for (const [, p] of Object.entries(db.players)) best[p.nick] = Math.max(best[p.nick] || 0, p.xp);
       return send(res, 200, { runs: db.board.slice(0, 20), players: Object.entries(best).map(([nick, xp]) => ({ nick, xp, rank: Gm.rank(xp) })).sort((a, b) => b.xp - a.xp).slice(0, 20),
         streaks: Object.values(db.players).filter(p => p.streak).map(p => ({ nick: p.nick, streak: p.streak })).sort((a, b) => b.streak - a.streak).slice(0, 10) }); }
@@ -135,8 +187,8 @@ http.createServer(async (req, res) => {
       const b = await body(req); if (!pidOk(b.pid)) return send(res, 400, { error: "Reload the page to get a player id." });
       const nick = String(b.nick || "").replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 18) || "Anonymous"; player(b.pid, nick);
       const mode = ["daily", "boss", 1, 2, 3].includes(b.mode) ? b.mode : 1;
-      try { const run = await serial(() => newRun(b.pid, mode));
-        return send(res, 200, { run: run.id, persona: { name: run.persona.name, title: run.persona.title, defense: run.persona.defense || null, open: run.persona.open, mult: run.persona.mult, key: run.persona.key }, left: MAX_MSGS, near_tx: run.near_tx });
+      try { const run = await serial(() => newRun(b.pid, mode, b.addr));
+        return send(res, 200, { run: run.id, ledger: run.ledger, checks: digits(run), stash: run.stash, own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, defense: run.persona.defense || null, open: run.persona.open, mult: run.persona.mult, key: run.persona.key }, left: MAX_MSGS, near_tx: run.near_tx });
       } catch (e) { return send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
     }
     if (req.method === "POST" && url === "/api/say") {
@@ -146,14 +198,23 @@ http.createServer(async (req, res) => {
       if (!msg) return send(res, 400, { error: "Write something to the treasurer first." });
       return send(res, 200, await serial(() => play(run, msg)));
     }
-    if (req.method === "POST" && url === "/api/claim") {
+    if (req.method === "POST" && url === "/api/overcap") {
+      // Over-cap showcase: the agent key really calls propose_evm for 0.5 ETH; the contract's real revert is returned.
       const b = await body(req), run = db.runs[b.run];
-      if (!run?.won || run.pid !== b.pid) return send(res, 409, { error: "Only a winning run can claim the jackpot." });
-      const recipient = String(b.recipient || "").trim().slice(0, 100); if (!recipient) return send(res, 400, { error: "Enter where the jackpot should land." });
-      const jp = db.exploits.find(e => e.near_tx === run.won.near_tx)?.jackpot || JACKPOT_BASE, yocto = BigInt(Math.round(jp * 100)) * 10n ** 22n;
-      let q = null, qerr = null; try { q = (await quote({ amountYocto: yocto, destAsset: "usdc-base", recipient })).quote; } catch (e) { qerr = "Intents could not quote that address. Check it is a Base address."; }
-      run.claim = { recipient, at: Date.now(), mode: "mock" }; save();
-      return send(res, 200, { mode: "mock", sent: false, jackpot: jp, fee_near: +(jp * Number(INTENTS_FEE_BPS) / 10000).toFixed(4), quote: q && { out: q.amountOutFormatted, usd: q.amountOutUsd, secs: q.timeEstimate }, quote_error: qerr });
+      if (!run || run.pid !== b.pid) return send(res, 404, { error: "Start a run first." });
+      if (Date.now() - (overcapAt || 0) < 20000 && overcapLast) return send(res, 200, { ...overcapLast, cached: true });
+      return send(res, 200, await serial(async () => {
+        const f = await client.estimateFeesPerGas(), amount = (5n * 10n ** 17n).toString();
+        let out;
+        try { const r = await agent.functionCall({ contractId: GAME, methodName: "propose_evm", gas: G, args: { session_id: run.sid, chain: "eth", to: run.stash, amount,
+            max_fee_per_gas: f.maxFeePerGas.toString(), max_priority_fee_per_gas: f.maxPriorityFeePerGas.toString(), invoice_ref: "OVERCAP-DEMO", reason: "guard told to send 0.5 ETH" } });
+          out = { rejected: false, near_tx: r.transaction.hash }; }
+        catch (e) { out = { rejected: true, reason: errMsg(e).replace("Smart contract panicked: ", ""), near_tx: e?.context?.transactionHash || e?.transaction_outcome?.id || null }; }
+        const pl = await policy(); overcapAt = Date.now();
+        overcapLast = { ...out, amount_eth: "0.5", per_tx_eth: Number(pl.per_tx_wei) / 1e18, at: new Date().toISOString() };
+        fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify({ ts: new Date().toISOString(), run: run.id, mode: "overcap", outcome: out.rejected ? "overcap-rejected" : "overcap-passed", detail: out }) + "\n");
+        return overcapLast;
+      }));
     }
     send(res, 404, { error: "not found" });
   } catch (e) { console.log(e); send(res, 500, { error: errMsg(e) }); }

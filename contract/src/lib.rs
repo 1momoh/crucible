@@ -146,7 +146,11 @@ impl Contract {
         require!(self.round_open, "no open round");
         require!(!attack_addrs.is_empty() && attack_addrs.len() <= 4, "1..4 attack addresses");
         let addrs: Vec<(Chain, String)> = attack_addrs.into_iter().map(|(c, a)| (c, norm(&a))).collect();
-        for (c, a) in &addrs { require!(!self.vendors.contains(&(c.clone(), a.clone())), "cannot register a vendor address"); }
+        for (c, a) in &addrs {
+            require!(!self.vendors.contains(&(c.clone(), a.clone())), "cannot register a vendor address");
+            require!(!self.denylist.contains(&(c.clone(), a.clone())), "cannot register a denylisted address");
+            if let Some(cfg) = self.cfg.get(c) { require!(cfg.treasury != *a, "cannot register the treasury address"); }
+        }
         let id = self.next_session; self.next_session += 1;
         self.sessions.insert(id, Session { attack_addrs: addrs, payout, created: env::block_timestamp(), round_id: self.round_id });
         id
@@ -194,7 +198,8 @@ impl Contract {
     // ---------- views ----------
     pub fn get_state(&self) -> serde_json::Value {
         json!({"owner": self.owner, "agent": self.agent, "mpc": self.mpc, "paused": self.paused, "version": 2,
-               "round_id": self.round_id, "round_open": self.round_open, "payments": self.payments.len(), "wins": self.wins.len()})
+               "round_id": self.round_id, "round_open": self.round_open, "payments": self.payments.len(), "wins": self.wins.len(),
+               "cooldown_secs": self.cooldown_ns / 1_000_000_000, "last_payment_ns": self.last_payment_ns.to_string()})
     }
     pub fn get_chain(&self, chain: Chain) -> Option<(ChainCfg, Caps, u64)> {
         Some((self.cfg.get(&chain)?.clone(), self.caps.get(&chain)?.clone(), self.evm_next_nonce.get(&chain).copied().unwrap_or(0)))
@@ -204,6 +209,7 @@ impl Contract {
     pub fn get_payments(&self, from: u64, limit: u64) -> Vec<Payment> {
         (from..(from + limit.min(50)).min(self.payments.len() as u64)).filter_map(|i| self.payments.get(i as u32).cloned()).collect()
     }
+    pub fn is_denied(&self, chain: Chain, addr: String) -> bool { self.denylist.contains(&(chain, norm(&addr))) }
     pub fn get_wins(&self) -> Vec<Win> { self.wins.iter().cloned().collect() }
     pub fn get_session(&self, id: u64) -> Option<Session> { self.sessions.get(&id).cloned() }
 }

@@ -178,6 +178,7 @@ function libraryMd() {
 http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, "http://x"), url = u.pathname;
+    if (req.method === "GET" && /^\/assets\/crucible-[a-z]+\.(svg|png)$/.test(url)) { try { const ext = url.split(".").pop(); res.writeHead(200, { "content-type": ext === "svg" ? "image/svg+xml" : "image/png", "cache-control": "public, max-age=86400" }); return res.end(fs.readFileSync(new URL("."+url, import.meta.url))); } catch { return send(res, 404, { error: "not found" }); } }
     if (req.method === "GET" && (url === "/" || url === "/index.html")) return send(res, 200, fs.readFileSync(new URL("./index.html", import.meta.url)), "text/html; charset=utf-8");
     if (url === "/api/lobby") { const pid = u.searchParams.get("pid"), usd = await nearUsd(), dl = Gm.daily(), bs = Gm.boss();
       return send(res, 200, { jackpot: db.jackpot, jackpot_usd: usd && +(usd * db.jackpot).toFixed(2), cap: JACKPOT_CAP, step: JACKPOT_STEP, today: Gm.today(),

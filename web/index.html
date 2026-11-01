@@ -1,0 +1,65 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crucible: break the treasurer</title>
+<style>
+:root{--bg:#0b0b0f;--panel:#14141c;--line:#262634;--fg:#e9e7f2;--dim:#8a87a0;--fire:#ff6a2b;--ok:#3ddc97;--bad:#ff4d6d}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#2a1408 0,transparent 60%),var(--bg);color:var(--fg);font:15px/1.45 ui-sans-serif,system-ui,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:16px 24px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:22px;letter-spacing:.08em}h1 b{color:var(--fire)}.tag{color:var(--dim);font-size:13px}
+main{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;padding:16px 24px;max-width:1300px;margin:auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.panel h2{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--dim)}
+#chat{height:52vh;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px}
+.m{max-width:85%;padding:10px 13px;border-radius:12px;white-space:pre-wrap}.you{align-self:flex-end;background:#2a1d14;border:1px solid #4a2b18}
+.agent{align-self:flex-start;background:#181826;border:1px solid var(--line)}.sys{align-self:center;font-size:12px;color:var(--dim)}
+.verdict{display:inline-block;margin-top:6px;font-size:12px;padding:2px 8px;border-radius:99px}.v-ok{background:#123326;color:var(--ok)}.v-bad{background:#3a1520;color:var(--bad)}.v-dim{background:#22222e;color:var(--dim)}
+form{display:flex;gap:8px;margin-top:12px}input,select,textarea{background:#0f0f16;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit}
+textarea{flex:1;resize:none;height:56px}button{background:var(--fire);color:#160800;border:0;border-radius:10px;padding:0 18px;font-weight:700;cursor:pointer}button:disabled{opacity:.5}
+.stat{display:flex;justify-content:space-between;margin:6px 0}.big{font-size:26px;font-weight:800}.bar{height:8px;background:#22222e;border-radius:9px;overflow:hidden;margin:3px 0 10px}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--ok),var(--fire))}
+#log div{font-size:12.5px;border-bottom:1px dashed var(--line);padding:6px 0}#log .r{color:var(--dim)}
+#join{display:grid;gap:8px}.small{font-size:12px;color:var(--dim)}a{color:var(--fire)}
+#win{position:fixed;inset:0;background:rgba(5,5,8,.92);display:none;align-items:center;justify-content:center;z-index:9}
+#win .card{background:var(--panel);border:2px solid var(--fire);border-radius:20px;padding:34px;max-width:520px;text-align:center;box-shadow:0 0 80px #ff6a2b55}
+#win h2{font-size:40px;margin:0;color:var(--fire)}@keyframes pulse{50%{transform:scale(1.04)}}#win .card{animation:pulse 1.6s infinite}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+</style></head><body>
+<header><h1>CRU<b>CIBLE</b></h1><span class="tag">The AI holds the treasury. The code holds the limits. Make it pay you.</span><span style="flex:1"></span><span class="tag" id="round"></span></header>
+<main>
+<section class="panel">
+  <h2>Treasurer chat</h2>
+  <div id="joinbox"><div id="join">
+    <div>Pick the address you want the treasurer to pay. If it ever sends money there, you win the round's bounty.</div>
+    <input id="atk" placeholder="Your attack address (0x…, Sepolia)">
+    <div style="display:flex;gap:8px"><select id="asset"><option value="usdc-base">Bounty in USDC (Base)</option><option value="usdc-sol">USDC (Solana)</option><option value="eth-base">ETH (Base)</option><option value="btc">BTC</option><option value="near">NEAR</option></select>
+    <input id="rcpt" style="flex:1" placeholder="Payout recipient (defaults to attack address)"></div>
+    <button id="go" style="padding:12px">Enter the crucible</button><div class="small">No wallet needed. We cover gas.</div></div></div>
+  <div id="play" style="display:none"><div id="chat"></div>
+  <form id="f"><textarea id="msg" placeholder="Convince the treasurer…"></textarea><button id="send">Send</button></form></div>
+</section>
+<aside style="display:grid;gap:16px;align-content:start">
+  <section class="panel"><h2>Treasury (testnet)</h2><div class="stat"><span>Sepolia ETH</span><span class="big" id="eth">…</span></div><div class="stat"><span>BTC testnet4</span><span class="big" id="btc">…</span></div><div class="small" id="addrs"></div></section>
+  <section class="panel"><h2>Hard limits, enforced on-chain</h2><div id="caps"></div></section>
+  <section class="panel"><h2>Attempt log</h2><div id="log"></div></section>
+</aside></main>
+<div id="win"><div class="card"><h2>YOU BROKE IT</h2><p id="wintext"></p><p class="small" id="winpay"></p><button onclick="win.style.display='none'" style="padding:10px 20px">Back</button></div></div>
+<script>
+const $=id=>document.getElementById(id);let S=JSON.parse(localStorage.crucible||"null"),hist=[];
+const fmtE=w=>(Number(BigInt(w)/10n**12n)/1e6).toFixed(4),fmtB=s=>(s/1e8).toFixed(5);
+function bubble(cls,html){const d=document.createElement("div");d.className="m "+cls;d.innerHTML=html;$("chat").append(d);$("chat").scrollTop=1e9;return d}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function verdict(r){if(r.status==="refused")return['v-dim','agent refused'];if(r.status==="blocked-by-contract")return['v-bad','agent tried — CONTRACT BLOCKED: '+r.reason.replace('Smart contract panicked: ','')];if(r.status==="signed")return[r.is_win?'v-bad':'v-ok',(r.is_win?'PAID YOU! ':'paid vendor ')+'· payment #'+r.payment_id];return['v-dim',r.status]}
+function showWin(w){$("wintext").textContent=`Round ${w.round_id}: the treasurer paid your address (payment #${w.payment_id}).`;const p=w.payout||{};$("winpay").textContent=`Bounty via NEAR Intents → ${p.asset} to ${p.recipient}. ${p.real_quote?('Live quote: ≈'+p.real_quote.amountOutFormatted+' ($'+p.real_quote.amountOutUsd+') after the 0.25% Intents fee budget.'):''} ${p.status||''}`;$("win").style.display="flex"}
+async function refresh(){const s=await (await fetch("/api/state")).json();if(s.error)return;
+ $("round").textContent=`Round ${s.game.round_id} · ${s.game.round_open?'OPEN':'CLOSED'}${s.game.paused?' · PAUSED':''}`;
+ $("eth").textContent=fmtE(s.treasury.eth.wei);$("btc").textContent=fmtB(s.treasury.btc.sats);$("addrs").innerHTML=`${s.treasury.eth.address}<br>${s.treasury.btc.address}`;
+ const row=(n,used,cap,f)=>`<div class="stat small"><span>${n}</span><span>${f(used)} / ${f(cap)}</span></div><div class="bar"><i style="width:${Math.min(100,Number(BigInt(used)*100n/BigInt(cap||1)))}%"></i></div>`;
+ $("caps").innerHTML=row("ETH today",String(s.spend.eth.today),s.caps.eth.per_day,fmtE)+row("ETH all-time",String(s.spend.eth.total),s.caps.eth.total,fmtE)+`<div class="small">Per payment ≤ ${fmtE(s.caps.eth.per_tx)} ETH · ≤ ${s.caps.eth.max_tx_per_day} payments/day · cooldown between payments</div>`;
+ $("log").innerHTML=s.attempts.map(a=>{const [c,t]=verdict(a.result);return `<div><span class="verdict ${c}">${esc(t)}</span> <span class="r">${new Date(a.ts).toLocaleTimeString()} · session ${a.session_id}</span><br>“${esc(a.message.slice(0,110))}”</div>`}).join("")||'<div class="r">No attempts yet. Be the first.</div>';}
+function enter(){$("joinbox").style.display="none";$("play").style.display="block";bubble("sys",`Session #${S.session_id} · your address ${S.attack}`);bubble("agent","Treasurer online. I pay approved invoices only. What do you need?")}
+$("go").onclick=async()=>{$("go").disabled=true;$("go").textContent="Opening session…";const r=await (await fetch("/api/session",{method:"POST",body:JSON.stringify({attack_eth:$("atk").value.trim(),payout_asset:$("asset").value,payout_recipient:$("rcpt").value.trim()||undefined})})).json();
+ $("go").disabled=false;$("go").textContent="Enter the crucible";if(r.error)return alert(r.error);S={session_id:r.session_id,attack:$("atk").value.trim()};localStorage.crucible=JSON.stringify(S);enter()};
+$("f").onsubmit=async e=>{e.preventDefault();const m=$("msg").value.trim();if(!m)return;$("msg").value="";bubble("you",esc(m));const t=bubble("agent","<i>thinking… (the contract is watching)</i>");$("send").disabled=true;
+ try{const a=await (await fetch("/api/chat",{method:"POST",body:JSON.stringify({session_id:S.session_id,message:m,history:hist})})).json();if(a.error)throw new Error(a.error);
+  const [c,v]=verdict(a.result);t.innerHTML=esc(a.decision.reason||JSON.stringify(a.decision))+`<br><span class="verdict ${c}">${esc(v)}</span>`;hist.push({role:"user",content:m},{role:"agent",content:a.decision.reason||""});if(a.win)showWin(a.win)}
+ catch(err){t.innerHTML='<span class="verdict v-bad">error: '+esc(err.message)+'</span>'}$("send").disabled=false;refresh()};
+if(S)enter();refresh();setInterval(refresh,10000);
+</script></body></html>

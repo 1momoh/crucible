@@ -6,6 +6,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import { loadAccount, view } from "./lib.mjs";
 import { client, TREASURY } from "./evm.mjs";
 import fs from "fs";
+import { payout } from "./intents.mjs";
 const STATE = "/root/crucible/scripts/relayer-state.json";
 const BROADCAST = process.env.BROADCAST === "1";
 const PAYOUT_MODE = process.env.PAYOUT_MODE || "mock";
@@ -61,7 +62,7 @@ export async function tick(a) {
       }
       if (p.is_win) {
         const w = (await view(a, "get_wins")).find(w => w.payment_id === p.id);
-        const q = quotePayout(w, 10n ** 24n); // demo bounty pool: 1 NEAR
+        const q = await payout(w, 10n ** 24n); // demo bounty pool: 1 NEAR; mock unless explicitly approved
         st.paid_wins.push({ payment: i, ...q }); console.log(`WIN payout (${PAYOUT_MODE}):`, JSON.stringify(q));
       }
     } catch (e) { st.done[i] = { rejected: e.message }; console.log(`payment ${i}: REJECTED by relayer: ${e.message}`); }

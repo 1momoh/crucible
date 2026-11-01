@@ -8,3 +8,7 @@ scripts/sign-test-result.json
 scripts/relayer-state.json
 web/attempts.jsonl
 web/game.json
+*.log
+agent/*.log
+.crucible/
+*.pem

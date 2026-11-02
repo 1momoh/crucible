@@ -202,7 +202,8 @@ const send = (res, code, obj, type = "application/json") => { res.writeHead(code
 const ipLimits = new Map();
 setInterval(() => { const now = Date.now(); for (const [ip, v] of ipLimits) if (v.reset <= now) ipLimits.delete(ip); }, 60000).unref();
 function rateLimited(req) {
-  const ip = req.socket.remoteAddress, now = Date.now();
+  const sock = req.socket.remoteAddress || "", fwd = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const ip = /^(::ffff:)?127\.|^::1$/.test(sock) && fwd ? fwd : sock, now = Date.now(); // behind a local proxy, key by client IP
   let v = ipLimits.get(ip);
   if (!v || v.reset <= now) ipLimits.set(ip, v = { n: 0, reset: now + 60000 });
   return ++v.n > 30;

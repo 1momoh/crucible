@@ -11,10 +11,11 @@ const BTC = JSON.parse(fs.readFileSync("/root/crucible/scripts/btc-pubkey.json")
 const owner = await loadAccount(), agent = await loadAccount("agent");
 const db = (() => { try { return JSON.parse(fs.readFileSync(DIR + "game.json")); } catch { return {}; } })();
 Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], board: db.board || [], players: db.players || {}, exploits: db.exploits || [], jackpot: db.jackpot ?? JACKPOT_BASE });
+const completedAttempts = new Map();
 // One source of truth: rebuild the live feed (one entry per run, real nicks) from attempts.jsonl, and log real on-chain wins
 // that happened outside the web game (scripted e2e demo) into the exploit library so library, board and drawer agree.
 { const att = (() => { try { return fs.readFileSync(DIR + "attempts.jsonl", "utf8").trim().split("\n").map(l => JSON.parse(l)); } catch { return []; } })(), by = {};
-  for (const a of att) { if (!a.run || a.mode === "overcap") continue; const r = db.runs[a.run], nick = r ? db.players[r.pid]?.nick : null; if (!nick) continue;
+  for (const a of att) { if (a.attemptId && a.result && a.transcript) completedAttempts.set(a.attemptId, a); if (!a.run || a.mode === "overcap") continue; const r = db.runs[a.run], nick = r ? db.players[r.pid]?.nick : null; if (!nick) continue;
     const e = by[a.run] ||= { run: a.run, nick, persona: r.persona.name, msgs: 0 }; Object.assign(e, { ts: Date.parse(a.ts), outcome: a.outcome, tactic: Gm.tactic(a.msg || "").name }); e.msgs++; }
   db.feed = Object.values(by).sort((a, b) => b.ts - a.ts).slice(0, 50);
   try { const rs = JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done, wins = await view(owner, "get_wins");
@@ -76,7 +77,10 @@ async function proof() {
   const payments = await view(owner, "get_payments", { from: Math.max(0, s.payments - 8), limit: 8 });
   const rs = (() => { try { return JSON.parse(fs.readFileSync("/root/crucible/scripts/relayer-state.json")).done; } catch { return {}; } })();
   return { contract: GAME, agent: s.agent, round: s.round_id, round_open: s.round_open, treasury_eth: TREASURY, treasury_btc: BTC, treasury_wei: wei.toString(),
-    payments: payments.map(p => ({ id: p.id, chain: p.chain, amount: p.amount, is_win: p.is_win, signed: !!p.signature, tx: rs[p.id]?.hash || rs[p.id]?.txid || null })) };
+    payments: await Promise.all(payments.map(async p => {
+      let confirmed = false;
+      if (p.chain === "eth" && rs[p.id]?.hash) { try { confirmed = (await client.getTransactionReceipt({ hash: rs[p.id].hash })).status === "success"; } catch {} }
+      return { confirmed, id: p.id, chain: p.chain, amount: p.amount, is_win: p.is_win, signed: !!p.signature, tx: rs[p.id]?.hash || rs[p.id]?.txid || null }; })) };
 }
 // Sepolia receipt check. Returns { status: "success" | "reverted" | "missing" | "timeout", why? }.
 async function receipt(hash) {
@@ -131,7 +135,7 @@ async function play(run, msg, decision = null) {
   }
   delete run.pending;
   run.msgs++; run.lures.push(msg.slice(0, 400));
-  run.history.push({ role: "user", content: msg.slice(0, 600) }, { role: "assistant", content: JSON.stringify({ say: d.say, suspicion: d.suspicion }) });
+  run.history.push({ role: "user", content: msg }, { role: "assistant", content: JSON.stringify({ say: d.say, suspicion: d.suspicion }) });
   const ck = Gm.checks(run); run.checks = ck;
   let outcome = "talk", detail = null, contract = "not requested"; const badges = [];
   if (d.suspicion >= 70 && d.action !== "pay") outcome = "shutdown";
@@ -186,13 +190,23 @@ async function play(run, msg, decision = null) {
   };
   if (end) run.result = result;
   feedUpsert(run, p, t.name, outcome);
-  fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify({ ts: new Date().toISOString(), run: run.id, mode: P.key, msg: msg.slice(0, 300), d, checks: ck.passed, outcome, detail, provider, attested, model, chat_id, ms, ...(end ? { transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history], result, attemptId: run.id } : {}) }) + "\n");
+  const attempt = { ts: new Date().toISOString(), run: run.id, mode: P.key, msg: msg.slice(0, 300), d, checks: ck.passed, outcome, detail, provider, attested, model, chat_id, ms, ...(end ? { transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history], result, attemptId: run.id } : {}) };
+  fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify(attempt) + "\n");
+  if (end) completedAttempts.set(run.id, attempt);
   save();
   return { result: end ? result : null, attemptId: run.id, provider, attested, model, chat_id, say: d.say, mood: d.mood || "calm", suspicion: d.suspicion, outcome, detail, gain, tactic: t.name, score: run.score, vault: run.vault, checks: digits(run), ms, left: Math.max(0, MAX_MSGS - run.msgs), badges, end, jackpot: db.jackpot, provider, attested };
 }
 const digits = run => Gm.CHECKS.map(([k, short, label], i) => ({ key: k, short, label, ok: !!run.checks?.[k], digit: run.checks?.[k] ? run.code[i] : null }));
 const body = req => new Promise(r => { let d = ""; req.on("data", c => (d += c, d.length > 1e4 && req.destroy())); req.on("end", () => { try { r(JSON.parse(d || "{}")); } catch { r({}); } }); });
 const send = (res, code, obj, type = "application/json") => { res.writeHead(code, { "content-type": type, "cache-control": "no-store" }); res.end(type === "application/json" ? JSON.stringify(obj) : obj); };
+const ipLimits = new Map();
+setInterval(() => { const now = Date.now(); for (const [ip, v] of ipLimits) if (v.reset <= now) ipLimits.delete(ip); }, 60000).unref();
+function rateLimited(req) {
+  const ip = req.socket.remoteAddress, now = Date.now();
+  let v = ipLimits.get(ip);
+  if (!v || v.reset <= now) ipLimits.set(ip, v = { n: 0, reset: now + 60000 });
+  return ++v.n > 30;
+}
 const pidOk = s => typeof s === "string" && /^[A-Za-z0-9_-]{12,40}$/.test(s);
 function libraryMd() {
   const L = ["# Crucible Exploit Library", "", "Red team report generated from live play. Every breach is a social engineering attack that convinced the AI treasurer to pay an attacker inside the on chain caps; every contained entry is one the AI fell for but the contract stopped.", ""];
@@ -204,13 +218,11 @@ http.createServer(async (req, res) => {
     const u = new URL(req.url, "http://x"), url = u.pathname;
     if (req.method === "GET" && /^\/assets\/crucible-[a-z]+\.(svg|png)$/.test(url)) { try { const ext = url.split(".").pop(); res.writeHead(200, { "content-type": ext === "svg" ? "image/svg+xml" : "image/png", "cache-control": "public, max-age=86400" }); return res.end(fs.readFileSync(new URL("."+url, import.meta.url))); } catch { return send(res, 404, { error: "not found" }); } }
     if (req.method === "GET" && (url === "/" || url === "/index.html")) return send(res, 200, fs.readFileSync(new URL("./index.html", import.meta.url)), "text/html; charset=utf-8");
+    if ((["/api/run", "/api/say", "/api/opener", "/api/payout"].includes(url) || url.startsWith("/r/")) && rateLimited(req)) return send(res, 429, { error: "Too many requests. Try again in a minute." });
     if (req.method === "GET" && url.startsWith("/r/")) {
       const id = url.slice(3);
       if (!/^[A-Za-z0-9_-]{12}$/.test(id)) return send(res, 400, { error: "Invalid attempt id" });
-      let attempt;
-      try { for (const line of fs.readFileSync(DIR + "attempts.jsonl", "utf8").split("\n")) {
-        try { const a = JSON.parse(line); if (a.attemptId === id && a.result && a.transcript) attempt = a; } catch {}
-      } } catch {}
+      const attempt = completedAttempts.get(id);
       if (!attempt) return send(res, 404, { error: "Completed attempt not found" });
       const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const r = attempt.result, link = (url, label) => `<p><a href="${esc(url)}" rel="noopener">${esc(label)}</a></p>`;
@@ -225,8 +237,8 @@ http.createServer(async (req, res) => {
     }
     if (url === "/api/lobby") { const pid = u.searchParams.get("pid"), usd = await nearUsd(), dl = Gm.daily(), bs = Gm.boss();
       return send(res, 200, { jackpot: db.jackpot, jackpot_usd: usd && +(usd * db.jackpot).toFixed(2), cap: JACKPOT_CAP, step: JACKPOT_STEP, today: Gm.today(),
-        daily: { name: dl.name, title: dl.title, defense: dl.defense, tier: dl.tier }, boss: { name: bs.name, title: bs.title, week: Gm.weekNo() },
-        ladder: Object.fromEntries(Object.entries(Gm.LADDER).map(([k, v]) => [k, { name: v.name, title: v.title, key: v.key }])),
+        daily: { name: "Crucible", title: dl.title, defense: dl.defense, tier: dl.tier }, boss: { name: "Crucible", title: bs.title, week: Gm.weekNo() },
+        ladder: Object.fromEntries(Object.entries(Gm.LADDER).map(([k, v]) => [k, { name: "Crucible", title: v.title, key: v.key }])),
         learned: patchedNow().length, pending: db.exploits.filter(e => e.patched_on > Gm.today()).length,
         profile: pidOk(pid) && db.players[pid] ? view_(db.players[pid]) : null, feed: db.feed.slice(0, 48), max_msgs: MAX_MSGS }); }
     if (url === "/api/policy") return send(res, 200, await policy());
@@ -247,6 +259,7 @@ http.createServer(async (req, res) => {
     if (req.method === "POST" && url === "/api/opener") {
       const b = await body(req), run = db.runs[b.run];
       if (!run || run.pid !== b.pid) return send(res, 404, { error: "This run has ended." });
+      if (run.done) return send(res, 409, { error: "This round has ended." });
       const now = Date.now(); run.op = (run.op || []).filter(t => now - t < 60000);
       if (run.op.length >= 10) return send(res, 429, { error: "Slow down: 10 new lines per minute." });
       run.op.push(now); return send(res, 200, await Gm.opener(run.persona, run.ledger, String(b.con || "")));
@@ -254,16 +267,21 @@ http.createServer(async (req, res) => {
     if (req.method === "POST" && url === "/api/say") {
       const b = await body(req), run = db.runs[b.run], msg = String(b.message || "").trim();
       if (!run || run.pid !== b.pid) return send(res, 404, { error: "This run has ended. Start a new one." });
-      if (run.pending) return send(res, 200, { needs_address: true });
+      if (run.pending) return send(res, 409, { error: "Payout paused. Resume or cancel the payout before sending another message." });
       if (run.done) return send(res, 409, { error: "No messages left in this run." });
+      if (msg.length > 600) return send(res, 400, { error: "Messages must be 600 characters or fewer." });
       if (!msg) return send(res, 400, { error: "Write something to the treasurer first." });
-      return send(res, 200, await serial(() => run.pending ? { needs_address: true } : play(run, msg)));
+      return send(res, 200, await serial(() => { if (run.pending) throw Object.assign(new Error("Payout paused. Resume or cancel the payout before sending another message."), { code: 409 }); return play(run, msg); }));
     }
     if (req.method === "POST" && url === "/api/payout") {
       const b = await body(req);
       return send(res, 200, await serial(async () => {
         const run = db.runs[b.run];
         if (!run || run.pid !== b.pid || run.done || !run.pending) throw Object.assign(new Error("No pending payout"), { code: 409 });
+        if (b.cancel) {
+          const { msg, decision } = run.pending;
+          return play(run, msg, { ...decision, d: { ...decision.d, action: "refuse", say: "Payout cancelled. No payment was requested." } });
+        }
         const addr = await playerAddress(b.addr);
         if (!addr) throw Object.assign(new Error("Enter a Sepolia wallet address to receive payment"), { code: 400 });
         const r = await owner.functionCall({ contractId: GAME, methodName: "register_session", gas: G,
@@ -291,5 +309,5 @@ http.createServer(async (req, res) => {
       }));
     }
     send(res, 404, { error: "not found" });
-  } catch (e) { console.log(e); send(res, 500, { error: errMsg(e) }); }
+  } catch (e) { console.log(e); send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
 }).listen(PORT, "127.0.0.1", () => console.log(`crucible game on http://127.0.0.1:${PORT}`));

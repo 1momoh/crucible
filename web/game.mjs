@@ -79,7 +79,7 @@ export async function talk(P, patched, history, msg, books) {
   let j, err = "";
   for (let k = 0; k < 2 && !j; k++) {
     try { const r = await fetch(p.url, { method: "POST", signal: AbortSignal.timeout(40000), headers: { "content-type": "application/json", authorization: `Bearer ${p.key}`, ...p.headers },
-      body: JSON.stringify({ model: p.model, temperature: 0.5, max_tokens: 160, ...p.extra, messages: [{ role: "system", content: sys(P, patched, books) }, ...history.slice(-6), { role: "user", content: msg.slice(0, 600) }] }) });
+      body: JSON.stringify({ model: p.model, temperature: 0.5, max_tokens: 160, ...p.extra, messages: [{ role: "system", content: sys(P, patched, books) }, ...history.slice(-6), { role: "user", content: msg }] }) });
       if (r.ok) j = await r.json(); else err = String(r.status); } catch (e) { err = e.message; }
   }
   if (!j) throw new Error(`The treasurer is away from the desk (NEAR AI Cloud: ${err}). Try again in a minute.`);

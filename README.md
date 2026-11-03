@@ -62,3 +62,15 @@ The contract (`contract/src/*`), the scripts (`scripts/*`), the orchestrator and
 
 ## License
 MIT (see LICENSE).
+
+## NEAR pot payouts (current)
+
+Wins pay a fixed 0.1 NEAR from the `contract-near` pot contract straight to the winner's NEAR account.
+Limits live on-chain: 0.1 NEAR per win, 1 win per account, a daily cap, and never more than the pot holds.
+Only the owner or the agent account can call `pay`; the agent key is a function-call key limited to `pay`.
+The Sepolia/EVM payout path is no longer in the live flow; old contract and scripts stay for history.
+
+- Build: `cd contract-near && cargo near build non-reproducible-wasm --no-abi`
+- Deploy: `NEAR_NETWORK=testnet node scripts/deploy-pot.mjs pot1.<owner>.testnet 1`
+- Run the server with `NEAR_NETWORK` and `POT_CONTRACT` set.
+- Tests: `scripts/pot-tests.mjs` (testnet only), `scripts/pot-play.mjs <account>` plays the real server.

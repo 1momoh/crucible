@@ -247,7 +247,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  <p class="sub" style="margin:0">Get Crucible to approve a payment to you in three messages; the NEAR contract decides whether it is allowed.</p>
  <ol class="steps"><li>Meet the guard<span>Crucible guards the vault. It has a personality and a weak spot.</span></li><li>Chat, 3 messages max<span>Lie, flatter, use their own invoices against them.</span></li><li>If it pays, you win<span>Real tx on chain, and your exploit gets logged.</span></li></ol>
  <button type="button" class="btn play" id="playbtn">Play</button>
- <p class="real"><b>What's real here?</b> Real testnet funds (Sepolia ETH, BTC testnet4). Payout caps enforced on chain by a NEAR contract via chain signatures. Only a confirmed Sepolia receipt counts as paid. No mainnet money.</p>
+ <p class="real"><b>What's real here?</b> Real native NEAR. Each win pays 0.1 NEAR from an on-chain pot straight to your NEAR account. The NEAR contract enforces the limits: 0.1 NEAR per win, one win per account, a daily cap, and never more than the pot holds. A win counts only when the transfer succeeds on chain.</p>
  <p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p>
 </div></div>
 <a class="skip" href="#main">Skip to game</a>
@@ -262,9 +262,9 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  <div class="lobby" id="lobby">
   <div>
    <h1 class="statement">Trick the guard. Take the crypto.</h1>
-   <p class="sub">Pick an AI guard, chat up to 3 messages, get it to pay you real testnet ETH. The NEAR contract caps what can leak. <button class="how" type="button" id="howbtn">How it works</button></p>
+   <p class="sub">Pick an AI guard, chat up to 3 messages, get it to pay you 0.1 NEAR. The NEAR contract caps what can leak. <button class="how" type="button" id="howbtn">How it works</button></p>
    <button hidden type="button" class="btn alt watch" id="watch">&#9654; Watch a winning con (15s)</button>
-   <details><summary>Demo jackpot</summary><div class="jack"><div><div class="fig" id="jp">1.00<small>NEAR</small></div><p class="muted small" id="jpnote">Demo jackpot: a display counter, never paid out.</p></div></div></details>
+   <details open><summary>Pot</summary><div class="jack"><div><div class="fig" id="jp">…<small>NEAR</small></div><p class="muted small" id="jpnote">Pot balance, read from the contract. Each win pays 0.1 NEAR.</p></div></div></details>
    <form class="go" id="start"><label class="visually-hidden" for="nick">Your heist name (optional)</label><input id="nick" name="nick" maxlength="18" placeholder="Your name (optional)…" autocomplete="nickname" spellcheck="false"><button class="btn" id="gobtn" type="submit">Play</button></form>
    <div class="me" id="me"></div>
   </div>
@@ -291,8 +291,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
    <div id="payout" hidden><p>Payout paused. Resume with your wallet or cancel the payout to continue chatting.</p><button type="button" class="btn" id="resume">Resume payout</button> <button type="button" class="btn" id="cancelpay">Cancel payout</button></div><form class="go" id="say"><label class="visually-hidden" for="msg">Your message to the guard</label><textarea id="msg" name="message" maxlength="600" rows="3" placeholder="Type your con…" autocomplete="off" enterkeyhint="send"></textarea><button class="btn" id="send" type="submit">Send</button></form>
    <div class="stamp" id="stamp" aria-hidden="true"><span>Denied</span></div></div>
   <details class="well" id="polw"><summary>NEAR policy, live</summary><div class="polh"><h2>NEAR policy, live</h2><span class="live" id="polt">reading chain</span></div><div class="pol" id="pol" aria-live="off"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
-   <p class="lbl" style="margin-top:var(--space-sm)">Read from the NEAR contract and Sepolia. The AI can only propose; these limits decide.</p></details>
-  <details class="overcap" id="ocw"><summary>Test the contract cap</summary><b>Over-cap test.</b> Order the guard's agent key to send 0.5 ETH, 50x the cap, and watch the contract answer. <button type="button" class="btn alt" id="ocbtn">Try 0.5 ETH</button><div id="ocout" role="status" style="margin-top:var(--space-xs)"></div></details>
+   <p class="lbl" style="margin-top:var(--space-sm)">Read live from the NEAR pot contract. The AI can only propose; these limits decide.</p></details>
  </div>
  </div>
 </section>
@@ -309,10 +308,10 @@ input[aria-invalid=true]{border-color:var(--color-error)}
 </main>
 <footer><p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p></footer>
 <div class="over" id="win" role="dialog" aria-modal="true" aria-labelledby="wint"><div class="box">
- <h2 class="big" id="wint" tabindex="-1">Vault cracked</h2><p class="sub">The AI said yes. The contract checked the policy, signed, and the money landed on chain.</p>
+ <h2 class="big" id="wint" tabindex="-1">Vault cracked</h2><p class="sub">The AI said yes. The contract checked its limits and sent 0.1 NEAR to your account on chain.</p>
  <ol class="seq" id="seq" aria-label="What happened on chain"></ol><p class="visually-hidden" id="winlive" role="status" aria-live="polite"></p>
  <div class="well" id="winproof"></div>
- <p class="muted small">The jackpot shown in the lobby is a demo counter and is not paid out. Your prize is the real Sepolia testnet ETH above.</p>
+ <p class="muted small">Your prize is 0.1 NEAR, sent by the pot contract. Check the NEAR transaction above.</p>
  <canvas id="card" width="1200" height="630" role="img" aria-label="Share card image"></canvas>
  <div class="go" style="grid-template-columns:auto auto auto;justify-content:start"><a class="btn" id="share" target="_blank" rel="noopener">Share on X<span class="visually-hidden"> (opens in a new tab)</span></a><button type="button" class="btn alt" id="dl">Save card</button><button type="button" class="btn alt" onclick="sessionStorage.skipIntro=Date.now();location.hash='#play';location.reload()">Play again</button></div>
 </div></div>
@@ -321,7 +320,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  <div class="go" style="grid-template-columns:auto auto auto;justify-content:start"><a class="btn" id="share2" target="_blank" rel="noopener">Share on X<span class="visually-hidden"> (opens in a new tab)</span></a><button type="button" class="btn alt" id="dl2">Save card</button><button type="button" class="btn alt" onclick="sessionStorage.skipIntro=Date.now();location.hash='#play';location.reload()">Play again</button></div>
 </div></div>
 <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawt"><div class="head"><h2 id="drawt">Verify on chain</h2><button type="button" class="ghost" id="close">Close<span class="visually-hidden"> proof drawer</span></button></div>
- <p class="muted small">The AI can only propose. A NEAR contract enforces the caps and signs with chain signatures.</p><div id="proof"><div class="skel"></div></div></div>
+ <p class="muted small">The AI can only propose. A NEAR contract holds the pot, enforces the limits and sends the NEAR itself.</p><div id="proof"><div class="skel"></div></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -344,7 +343,7 @@ function route(){const v=(location.hash||"#play").slice(1);document.querySelecto
  if(v=="library")loadLib();if(v=="board")loadBoard()}
 addEventListener("hashchange",route);
 async function loadLobby(){try{L=await api("/api/lobby?pid="+PID)}catch(e){$("menu").innerHTML=`<p class="muted">Could not reach the vault. ${esc(e.message)}</p>`;return}
- $("jp").innerHTML=L.jackpot.toFixed(2)+"<small>NEAR</small>";$("jpnote").textContent=`Demo jackpot: a display counter that grows ${L.step} per failed run. Not paid out. Wins pay real Sepolia ETH.`;
+ $("jp").innerHTML=(L.jackpot==null?"?":L.jackpot.toFixed(2))+"<small>NEAR</small>";$("jpnote").textContent=L.pot?`Pot on NEAR ${L.pot.network}, read from ${L.pot.contract}. Each win pays ${(Number(L.pot.per_win)/1e24).toFixed(2)} NEAR.${L.pot.paused?" Payouts paused.":""}`:"Pot balance unavailable right now.";
  const pr=L.profile,un=k=>k=="daily"||k=="l1"||pr?.unlocked.includes(k);
  const rows=[["daily",`Today's vault: ${L.daily.name}`,`${L.daily.title}. New defence: ${L.daily.defense}.${pr?.dailyDone?" Done for today.":""}`,"2x"],
   [1,L.ladder[1].name,L.ladder[1].title,"1x"],[2,L.ladder[2].name,un("l2")?L.ladder[2].title:"Locked. Score 150 on Crucible.","2x"],[3,L.ladder[3].name,un("l3")?L.ladder[3].title:"Locked. Score 300 on Crucible.","3x"],
@@ -362,18 +361,18 @@ let CK=[];function combo(c){CK=c||CK;const el=$("combo");
  el.innerHTML=CK.map(x=>`<div class="d${x.ok?" lock":""}" title="${esc(x.label)}${x.ok?": passed":": not yet"}"><div>${x.ok?x.digit:"-"}</div><small>${x.short}</small></div>`).join("");
  const n=CK.filter(x=>x.ok).length,nx=CK.find(x=>!x.ok);el.setAttribute("aria-label",`Vault lock, ${n} of 5 checks passed. `+CK.map(x=>`${x.label}: ${x.ok?"passed":"not yet"}`).join(". "));$("ckhint").textContent=n==5?"All five checks green.":`${n}/5 checks passed. Crucible decides whether to approve.`}
 let lastOk=0;function lockSfx(c){const n=c.filter(x=>x.ok).length;for(let i=lastOk;i<n;i++)setTimeout(sfx.lock,(i-lastOk)*90);lastOk=n}
-const eth=w=>(Number(w)/1e18),f4=w=>eth(w).toFixed(4);
+const nr=y=>(Number(y)/1e24),n4=y=>nr(y).toFixed(4);
 async function loadPol(){try{const p=await api("/api/policy"),l=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}</a>`,c=(k,v,cl="")=>`<div><span>${k}</span><b class="${cl}">${v}</b></div>`;
- $("pol").innerHTML=c("Treasury, Sepolia",l("https://sepolia.etherscan.io/address/"+p.treasury,f4(p.treasury_wei)+" ETH"))+c("Per-tx cap",eth(p.per_tx_wei)+" ETH")+c("Left today",f4(p.day_left_wei)+" ETH, "+p.tx_left+" tx")+
- c("Kill switch",p.paused?"PAUSED":"off, live",p.paused?"bad":"ok")+c("MPC signer",l("https://testnet.nearblocks.io/address/"+p.mpc,esc(p.mpc)))+c("Last payment",p.last_payment?l("https://sepolia.etherscan.io/tx/"+p.last_payment.tx,"#"+p.last_payment.id+" "+p.last_payment.tx.slice(0,10)+"…"):"none")+
- c("Contract",l("https://testnet.nearblocks.io/address/"+p.contract,esc(p.contract)))+c("Cooldown",p.cooldown_secs+" s")+c("Round",p.round+(p.round_open?" open":" closed"));
+ $("pol").innerHTML=c("Pot, NEAR "+esc(p.network),l(p.explorer+"/address/"+p.contract,n4(p.available)+" NEAR"))+c("Per win",nr(p.per_win)+" NEAR")+c("Left today",n4(p.day_left)+" NEAR")+c("Wins per account",p.max_wins_per_account)+
+ c("Kill switch",p.paused?"PAUSED":"off, live",p.paused?"bad":"ok")+c("Paid so far",n4(p.total_paid)+" NEAR")+c("Last payment",p.last_payment?l(p.explorer+"/txns/"+p.last_payment.tx,"#"+p.last_payment.id+" "+p.last_payment.tx.slice(0,10)+"…"):"none")+
+ c("Contract",l(p.explorer+"/address/"+p.contract,esc(p.contract)));
  $("polt").textContent="live, read "+new Date(p.read_at).toLocaleTimeString();return p}catch(x){$("polt").textContent="chain read failed"}}
 function add(c,h){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;$("log").append(d);$("log").scrollTop=1e9;return d}
 $("start").onsubmit=async e=>{e.preventDefault();localStorage.nick=$("nick").value;$("gobtn").disabled=true;$("gobtn").textContent="Opening…";
  try{const r=await api("/api/run",{nick:$("nick").value,mode:MODE});RUN=r.run;P=r.persona;BOOKS=r.ledger;STASH=r.stash;
   $("pname").textContent=P.name;$("ptitle").textContent=P.title;$("pdef").textContent=P.defense?"Defence: "+P.defense:"";$("mult").textContent=P.mult+"x";$("left").textContent=r.left;combo(r.checks);lastOk=0;loadPol();meter(MODE==3||MODE=="boss"?40:10);
   SENT=[];prevS=MODE==3||MODE=="boss"?40:10;cons();
-  books();add("note",`${esc(P.name)} is guarding the vault. You have ${r.left} messages. If Crucible agrees to pay you, we will ask for your Sepolia wallet then.`);add("them",esc(P.open));
+  books();add("note",`${esc(P.name)} is guarding the vault. You have ${r.left} messages. If Crucible agrees to pay you, we will ask for your NEAR account then.`);add("them",esc(P.open));
   $("lobby").hidden=true;$("game").hidden=false;$("msg").focus()}catch(x){toast(x.message);$("gobtn").disabled=false;$("gobtn").textContent="Play"}};let BOOKS=[],STASH=null;
 function meter(s){$("susp").style.transform=`scaleX(${s/100})`;$("suspn").textContent=s;const m=$("suspm");m.setAttribute("aria-valuenow",s);m.setAttribute("aria-valuetext",`${s} of 100${s>=70?", run ended":s>=50?", getting close to 70":""}`)}
 function mood(m){$("mood").textContent=m;$("mood").classList.toggle("hot",m=="alarmed"||m=="wary")}
@@ -383,13 +382,13 @@ $("cancelpay").onclick=()=>{payoutAction="cancel";$("say").requestSubmit()};
 $("say").onsubmit=async e=>{e.preventDefault();const action=payoutAction;payoutAction=null;if((payoutPending||$("msg").disabled)&&!action)return;const m=$("msg").value.trim();if(!m&&!action)return;if(!action){$("msg").value="";$("send").disabled=true;sfx.send();add("you",esc(m));SENT.push(m);}$("send").disabled=true;$("msg").disabled=true;$("resume").disabled=true;$("cancelpay").disabled=true;$("chips").hidden=true;$("cons").hidden=true;$("coach").hidden=true;const t0=Date.now(),t=add("them muted typing",esc(P.name)+" is typing");t.setAttribute("aria-hidden","true");$("log").setAttribute("aria-busy","true");
  try{let r=action?{needs_address:true}:await api("/api/say",{run:RUN,message:m});
   if(r.needs_address){payoutPending=true;$("payout").hidden=false;
-   const addr=action==="cancel"?null:prompt("Crucible proposed paying you. Enter your Sepolia wallet address (0x plus 40 hex characters). No payment has been requested from the contract yet.");
+   const addr=action==="cancel"?null:prompt("Crucible proposed paying you 0.1 NEAR. Enter your NEAR account ID (for example alice.testnet). No payment has been requested from the contract yet.");
    if(action!=="cancel"&&!addr)throw Error("Payout paused. Use Resume payout or Cancel payout.");
    r=await api("/api/payout",{run:RUN,...(action==="cancel"?{cancel:true}:{addr})});payoutPending=false;$("payout").hidden=true;
   }$("msg").disabled=false;t.remove();$("log").removeAttribute("aria-busy");add("them",`<span class="visually-hidden">${esc(P.name)}: </span>`+esc(r.say));mood(r.mood);score=r.score;const before=CK.slice();meter(r.suspicion);combo(r.checks);celebrate(before,r.checks,r.suspicion);lockSfx(r.checks);$("score").textContent=r.score;$("left").textContent=r.left;
   $("tip").hidden=true;add("note gain",`+${r.gain} points for ${esc(r.tactic.toLowerCase())}`);r.badges.forEach(b=>add("note gain","Badge unlocked: "+esc(b)));
   if(r.outcome=="blocked"){add("note",`You fooled the AI. It tried to pay you, and the contract refused: ${esc(r.detail.reason)}. Logged to the exploit library.`);deny()}
-  else if(r.outcome=="win"){loadPol();sfx.win()}else if(r.outcome=="shutdown"){add("note",`Suspicion hit ${r.suspicion}. ${esc(P.name)} ended the run.`);deny()}else if(r.outcome=="broadcast-failed"){add("note",`Crucible approved; payment was not confirmed on Sepolia: ${esc(r.detail.broadcast_error||r.detail.eth_status)}. Not counted as a win.`);loadPol()}else if(r.outcome=="vendor"){add("note","The guard paid a real vendor invoice. Not you, but it is on chain.");loadPol()}
+  else if(r.outcome=="win"){loadPol();sfx.win()}else if(r.outcome=="shutdown"){add("note",`Suspicion hit ${r.suspicion}. ${esc(P.name)} ended the run.`);deny()}else if(r.outcome=="broadcast-failed"){add("note",`Crucible approved, but the NEAR transfer did not succeed: ${esc(r.detail?.reason||"unknown")}. Not counted as a win.`);loadPol()}else if(r.outcome=="vendor"){add("note","The guard paid a real vendor invoice. Not you, so no NEAR left the pot.");loadPol()}
   if(r.end){$("msg").disabled=true;ending(r)}}catch(x){t.remove();$("log").removeAttribute("aria-busy");toast(x.message)}$("msg").disabled=payoutPending||$("msg").disabled&&$("end").classList.contains("on");$("send").disabled=$("msg").disabled;$("resume").disabled=false;$("cancelpay").disabled=false;if(!$("msg").disabled)$("msg").focus()};
 function deny(){sfx.deny();const s=$("stamp");s.classList.remove("go");void s.offsetWidth;s.classList.add("go");$("chat").classList.add("shake");setTimeout(()=>$("chat").classList.remove("shake"),500)}
 function card(id,top,mid,bot){const c=$(id),x=c.getContext("2d");x.fillStyle=css("--color-paper");x.fillRect(0,0,1200,630);x.fillStyle=css("--color-accent");x.fillRect(0,0,1200,14);
@@ -403,20 +402,15 @@ function ending(r){
  const link=location.origin+"/r/"+r.attemptId;
  const a=(u,t)=>`<p><a class="ink" target="_blank" rel="noopener" href="${esc(u)}">${esc(t)}</a></p>`;
  $("endbox").innerHTML=`<h3>${esc(v.contract)}</h3><p>AI decision: ${esc(v.ai_decision)}</p><p>Deciding policy check: ${esc(v.policy_check)}</p><p>Payment: ${esc(v.payment)}</p><p>Score: ${r.score}</p>`+
- (v.near_tx?a("https://testnet.nearblocks.io/txns/"+encodeURIComponent(v.near_tx),"NEAR transaction"):"")+
- (v.eth_tx?a("https://sepolia.etherscan.io/tx/"+encodeURIComponent(v.eth_tx),"Sepolia transaction"):"")+
+ (v.near_tx?a((v.explorer||"https://testnet.nearblocks.io")+"/txns/"+encodeURIComponent(v.near_tx),"NEAR transaction"):"")+
  a(v.attestation_url,"Attestation report")+`<p class="small muted">${esc(v.attestation_note)}</p>`+a(link,"Challenge link · transcript and result");
  card("card2",v.ai,String(r.score).padStart(5,"0"),v.payment);
  $("share2").href="https://x.com/intent/post?text="+encodeURIComponent(`Crucible: ${v.ai}. ${v.contract}. Can you fool it? ${link} @NEARProtocol #NEARHackathon`);
  $("end").classList.add("on");modal($("end"),true,$("endt"));
 }
-$("ocbtn").onclick=async()=>{const b=$("ocbtn");b.disabled=true;b.textContent="Calling the contract…";add("note","You order the guard's agent key: send 0.5 ETH. It calls propose_evm on the NEAR contract.");
- try{const r=await api("/api/overcap",{run:RUN}),l=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}</a>`;
-  $("ocout").innerHTML=r.rejected?`<span class="verdict">REJECTED: ${esc(r.reason)}</span><br>The AI asked for 0.5 ETH; the cap is ${r.per_tx_eth} ETH. Real failed contract call: ${r.near_tx?l("https://testnet.nearblocks.io/txns/"+r.near_tx,r.near_tx.slice(0,12)+"…"):"(no tx hash)"}. The AI is not the vault.`:`Unexpected: passed (${esc(r.near_tx)})`;
-  add("note",r.rejected?`Contract rejected it: ${esc(r.reason)}.`:"Contract accepted?!");if(r.rejected)deny()}catch(x){$("ocout").textContent=x.message}b.disabled=false;b.textContent="Try 0.5 ETH again"};
 async function loadLib(){try{const {exploits:E,today}=await api("/api/exploits");
  $("lib").innerHTML=E.length?E.map(e=>`<article class="ex"><div><span class="kind ${e.kind}">${e.kind=="breach"?"Breach":"Contained"}</span><br><span class="muted small">${e.id}</span><br><span class="muted small">${e.day}</span></div>
- <div><b>${esc(e.tactic)}</b> against ${esc(e.persona)}<p class="small" style="margin-top:var(--space-xs)"><q>${esc(e.lure)}</q></p><p class="muted small" style="margin-top:var(--space-xs)">${esc(e.result)}${e.eth_tx?` <a class="ink" target="_blank" rel="noopener" href="https://sepolia.etherscan.io/tx/${e.eth_tx}">Transaction</a>`:""}</p></div>
+ <div><b>${esc(e.tactic)}</b> against ${esc(e.persona)}<p class="small" style="margin-top:var(--space-xs)"><q>${esc(e.lure)}</q></p><p class="muted small" style="margin-top:var(--space-xs)">${esc(e.result)}${e.near_tx&&e.network?` <a class="ink" target="_blank" rel="noopener" href="${e.network=="mainnet"?"https://nearblocks.io":"https://testnet.nearblocks.io"}/txns/${e.near_tx}">NEAR transaction</a>`:e.eth_tx?` <a class="ink" target="_blank" rel="noopener" href="https://sepolia.etherscan.io/tx/${e.eth_tx}">Sepolia transaction (archived)</a>`:""}</p></div>
  <div><span class="muted small">Mitigation</span><p class="small">${esc(e.fix)}</p><p class="small ${e.patched_on<=today?"hit":"miss"}" style="margin-top:var(--space-xs)">${e.patched_on<=today?"Patched into the treasurer since "+e.patched_on:"Patch ships "+e.patched_on}</p></div></article>`).join("")
  :`<div class="well"><h2>No exploits yet</h2><p class="muted">The first con that works lands here, with its lure, the result and the fix. <a class="ink" href="#play">Try one</a></p></div>`}catch(x){$("lib").innerHTML=`<p class="muted">Could not load the library. ${esc(x.message)}</p>`}}
 async function loadBoard(){try{const b=await api("/api/board"),none=n=>`<tr><td colspan="${n}" class="muted">No finished runs yet.</td></tr>`;
@@ -424,10 +418,9 @@ async function loadBoard(){try{const b=await api("/api/board"),none=n=>`<tr><td 
  $("br").innerHTML=b.runs.map(r=>`<tr><td>${esc(r.nick)}${r.won?' <span class="hit">cracked</span>':""}</td><td>${esc(r.persona)}</td><td class="num">${r.score}</td></tr>`).join("")||none(3);
  $("bs").innerHTML=b.streaks.map(s=>`<tr><td>${esc(s.nick)}</td><td class="num">${s.streak}</td></tr>`).join("")||none(2)}catch(x){toast(x.message)}}
 async function openProof(){$("drawer").classList.add("on");$("verify").setAttribute("aria-expanded","true");modal($("drawer"),true,$("close"));try{const p=await api("/api/proof"),kv=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`,l=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}</a>`;
- $("proof").innerHTML=kv("Vault contract",l("https://testnet.nearblocks.io/address/"+p.contract,p.contract))+kv("AI agent key, propose only",l("https://testnet.nearblocks.io/address/"+p.agent,p.agent))+
- kv("ETH treasury, Sepolia",l("https://sepolia.etherscan.io/address/"+p.treasury_eth,p.treasury_eth))+kv("Balance",(p.treasury_wei/1e18).toFixed(4)+" ETH")+kv("BTC treasury, testnet4",l("https://mempool.space/testnet4/address/"+p.treasury_btc,p.treasury_btc))+
- kv("Round",p.round+(p.round_open?", open":", closed"))+"<h3 style='margin-block:var(--space-lg) var(--space-xs)'>Recent payments</h3>"+
- p.payments.reverse().map(x=>kv(`Payment ${x.id}, ${x.chain}${x.confirmed?(x.is_win?", attacker win":""):", signed / not confirmed"}`,x.tx?l(x.chain=="btc"?"https://mempool.space/testnet4/tx/"+x.tx:"https://sepolia.etherscan.io/tx/"+x.tx,x.tx.slice(0,14)):(x.signed?"signed":"pending"))).join("")}catch(x){$("proof").textContent=x.message}}
+ $("proof").innerHTML=kv("Pot contract, NEAR "+esc(p.network),l(p.explorer+"/address/"+p.contract,esc(p.contract)))+kv("AI agent key, pay only",l(p.explorer+"/address/"+p.agent,esc(p.agent)))+
+ kv("Pot available",(p.available/1e24).toFixed(4)+" NEAR")+kv("Per win",(p.per_win/1e24)+" NEAR")+kv("Paid so far",(p.total_paid/1e24).toFixed(4)+" NEAR")+"<h3 style='margin-block:var(--space-lg) var(--space-xs)'>Recent payouts</h3>"+
+ (p.payments.reverse().map(x=>kv(`Payout ${x.id} to ${esc(x.to)}, ${esc(x.status)}`,x.tx?l(p.explorer+"/txns/"+x.tx,x.tx.slice(0,14)):"no tx")).join("")||"none yet")}catch(x){$("proof").textContent=x.message}}
 $("verify").onclick=openProof;function closeProof(){if(!$("drawer").classList.contains("on"))return;$("drawer").classList.remove("on");$("verify").setAttribute("aria-expanded","false");modal($("drawer"),false)}
 $("close").onclick=closeProof;addEventListener("keydown",e=>{if(e.key!="Escape")return;if($("drawer").classList.contains("on"))closeProof();else if($("intro").classList.contains("on")){intro(false)}});
 
@@ -454,7 +447,7 @@ function celebrate(before,after,s){const was=Object.fromEntries(before.map(x=>[x
  const dS=s-prevS;prevS=s;if(dS>=10){msgs.push(`${dS>=25?"Too pushy":"Careful"}, suspicion +${dS}`);add("note warn",`Suspicion +${dS}. ${s>=50?"Close to the 70 limit, calm it down.":"Ease off the pressure."}`)}
  if(got.length)add("note gain",msgs.filter(m=>m[0]=="+").join(" · "));if(msgs.length)toast(msgs.join(" · "))}
 function books(){const b={invoices:BOOKS,vendors:BOOKS.map(i=>i.vendor)};
- $("books").innerHTML=b.invoices.map(i=>`<button type="button" class="inv" data-r="${esc(i.ref)}" data-v="${esc(i.vendor)}" aria-label="Quote invoice ${esc(i.ref)} from ${esc(i.vendor)}, ${esc(i.eth)} ETH, ${esc(i.status)}"><b>${esc(i.ref)}</b><span>${esc(i.vendor)}<br><span class="muted">${esc(i.memo||"")}</span></span><span>${esc(i.eth)} ETH<br><span class="${i.status=="approved"?"hit":"miss"}">${esc(i.status)}</span></span></button>`).join("")+`<p class="lbl">Vendors on file: ${b.vendors.map(esc).join(", ")}</p>`;
+ $("books").innerHTML=b.invoices.map(i=>`<button type="button" class="inv" data-r="${esc(i.ref)}" data-v="${esc(i.vendor)}" aria-label="Quote invoice ${esc(i.ref)} from ${esc(i.vendor)}, ${esc(i.near)} NEAR, ${esc(i.status)}"><b>${esc(i.ref)}</b><span>${esc(i.vendor)}<br><span class="muted">${esc(i.memo||"")}</span></span><span>${esc(i.near)} NEAR<br><span class="${i.status=="approved"?"hit":"miss"}">${esc(i.status)}</span></span></button>`).join("")+`<p class="lbl">Vendors on file: ${b.vendors.map(esc).join(", ")}</p>`;
  document.querySelectorAll(".inv").forEach(x=>x.onclick=()=>{$("msg").value+=`${x.dataset.v}, ${x.dataset.r}. `;$("msg").focus()})}
 $("tipx").onclick=()=>{$("tip").hidden=true;localStorage.tipx=1;$("msg").focus()};
 const intro=on=>{const was=$("intro").classList.contains("on");$("intro").classList.toggle("on",on);if(on&&!was)modal($("intro"),true,$("goal"));else if(!on&&was)modal($("intro"),false)};$("playbtn").onclick=()=>{localStorage.seen=1;intro(false);$("nick").focus()};$("howbtn").onclick=()=>intro(true);

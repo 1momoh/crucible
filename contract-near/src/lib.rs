@@ -121,10 +121,11 @@ impl Pot {
     }
 
     // ---------- views ----------
-    /// Spendable now: balance minus storage stake, reserve and in-flight payouts.
+    /// Spendable now: balance minus storage stake and reserve. A scheduled transfer is already taken out of
+    /// account_balance by the runtime, so in-flight payouts are not subtracted again (in_flight is bookkeeping only).
     pub fn available(&self) -> u128 {
         let storage = env::storage_byte_cost().as_yoctonear() * env::storage_usage() as u128;
-        env::account_balance().as_yoctonear().saturating_sub(storage + self.reserve + self.in_flight)
+        env::account_balance().as_yoctonear().saturating_sub(storage + self.reserve)
     }
     pub fn get_state(&self) -> near_sdk::serde_json::Value {
         let fresh = env::block_timestamp() >= self.day_start + DAY_NS;

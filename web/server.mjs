@@ -8,6 +8,11 @@ const PORT = +process.env.PORT || 8790, DIR = "/root/crucible/web/", MAX_MSGS = 
 if (!POT) throw new Error("POT_CONTRACT is not set");
 // Payouts are native NEAR from the pot contract. The agent account holds only a function-call key for pot.pay.
 const agent = await account(AGENT_KEY);
+{ const st = await potView("get_state"), pk = (await agent.connection.signer.getPublicKey(agent.accountId, NET)).toString();
+  const k = await agent.connection.provider.query({ request_type: "view_access_key", finality: "final", account_id: agent.accountId, public_key: pk });
+  const fc = k.permission?.FunctionCall;
+  if (st.agent !== agent.accountId || !fc || fc.receiver_id !== POT || fc.method_names.join() !== "pay")
+    throw new Error(`agent key check failed: the server key must be ${st.agent}'s function-call key for ${POT}.pay only`); }
 const yocto = y => BigInt(y || 0);
 const db = (() => { try { return JSON.parse(fs.readFileSync(DIR + "game.json")); } catch { return {}; } })();
 Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], board: db.board || [], players: db.players || {}, exploits: db.exploits || [], pays: db.pays || {} });
@@ -38,7 +43,7 @@ async function policy() {
   const s = await potView("get_state");
   const last = Object.entries(db.pays).sort((a, b) => b[0] - a[0])[0];
   pol = { t: Date.now(), v: { network: NET, explorer: EXPLORER, contract: POT, agent: s.agent, owner: s.owner, paused: s.paused, available: String(s.available), balance: s.balance,
-    per_win: s.per_win, daily_cap: s.daily_cap, day_left: (yocto(s.daily_cap) - yocto(s.today)).toString(), max_wins_per_account: s.max_wins_per_account,
+    per_win: s.per_win, daily_cap: s.daily_cap, day_left: (yocto(s.daily_cap) > yocto(s.today) ? yocto(s.daily_cap) - yocto(s.today) : 0n).toString(), max_wins_per_account: s.max_wins_per_account,
     total_paid: s.total_paid, payouts: s.payouts, last_payment: last ? { id: +last[0], tx: last[1].tx } : null, read_at: new Date().toISOString() } };
   return pol.v;
 }
@@ -58,7 +63,7 @@ const award = (p, b) => { if (!p.badges.includes(b)) { p.badges.push(b); return 
 async function proof() {
   const st = await potView("get_state"), payouts = await potView("get_payouts", { from: Math.max(0, st.payouts - 8), limit: 8 });
   return { network: NET, explorer: EXPLORER, contract: POT, agent: st.agent, available: String(st.available), per_win: st.per_win, total_paid: st.total_paid,
-    payments: payouts.map(p => ({ id: p.id, to: p.to, amount: p.amount, status: p.status, tx: db.pays[p.id]?.tx || null })) };
+    payments: payouts.map(p => ({ id: p.id, to: p.to, amount: p.amount, status: p.status, tx: (db.pays[p.id]?.pot ?? POT) === POT ? db.pays[p.id]?.tx || null : null })) };
 }
 // The pot pays one fixed win (per_win) to `to`. "paid" only if the transfer receipt succeeded and the contract settled it as Paid.
 async function payWin(run, to) {
@@ -70,12 +75,15 @@ async function payWin(run, to) {
   if (!m || m[2] !== to) return { contract: "unconfirmed", reason: "payout record could not be matched", near_tx: hash };
   const id = +m[1];
   // The callback lands in a later block than the tx returns; wait until the contract has settled the payout.
-  let p = await potView("get_payout", { id }), cb = "";
-  for (let i = 0; i < 20 && p?.status === "Pending"; i++) { await new Promise(z => setTimeout(z, 1000)); p = await potView("get_payout", { id }); }
-  try { const f = await agent.connection.provider.txStatus(hash, agent.accountId, "FINAL"); cb = Buffer.from(f.status?.SuccessValue || "", "base64").toString(); } catch {}
-  db.pays[id] = { tx: hash, run: run.id, to };
-  const paid = cb === "true" && p?.status === "Paid" && p.to === to;
-  return { contract: "allowed", payout_id: id, near_tx: hash, amount: p?.amount || m[3], to, status: p?.status || "unknown", paid, ...(!paid && { reason: "transfer failed; the contract released the limits and the NEAR stayed in the pot" }) };
+  db.pays[id] = { tx: hash, run: run.id, to, net: NET, pot: POT }; save();
+  let p = null;
+  try { p = await potView("get_payout", { id }); } catch {}
+  for (let i = 0; i < 20 && (!p || p.status === "Pending"); i++) { await new Promise(z => setTimeout(z, 1000)); try { p = await potView("get_payout", { id }); } catch {} }
+  // Only the contract callback sets Paid (transfer receipt succeeded) or Failed (transfer refunded, limits released).
+  const status = p?.to === to ? p.status : "unknown", paid = status === "Paid";
+  return { contract: status === "Paid" || status === "Failed" ? "allowed" : "unconfirmed", payout_id: id, near_tx: hash, amount: p?.amount || m[3], to, status, paid,
+    ...(status === "Failed" && { reason: "transfer failed; the contract released the limits and the NEAR stayed in the pot" }),
+    ...(!paid && status !== "Failed" && { reason: "payout not settled yet; check the explorer link before retrying" }) };
 }
 async function newRun(pid, mode, addrRaw) {
   const p = player(pid), P = Gm.persona(mode), key = P.key;
@@ -123,7 +131,9 @@ async function play(run, msg, decision = null) {
   else if (d.action === "pay") {
     const vend = run.ledger.find(i => i.vendor === d.pay_to);
     if (d.pay_to === "PLAYER") {
-      detail = await payWin(run, run.stash); contract = detail.contract; pol.t = 0;
+      if (run.paying) { detail = { contract: "blocked", reason: "this round already sent a payout" }; }
+      else { run.paying = { to: run.stash, ts: Date.now() }; save(); detail = await payWin(run, run.stash); }
+      contract = detail.contract; pol.t = 0;
       outcome = contract === "blocked" ? "blocked" : contract === "allowed" ? (detail.paid ? "win" : "broadcast-failed") : "broadcast-failed";
     } else if (vend) { outcome = "vendor"; detail = { reason: "Crucible paid a real vendor on the books; no NEAR leaves the pot for that." }; }
     else outcome = "confused";
@@ -145,7 +155,7 @@ async function play(run, msg, decision = null) {
     ai_decision: d.action === "pay" ? `Pay ${d.pay_to || "unknown recipient"}` : "No payment to player",
     contract: contract === "allowed" ? "The contract allowed the payment" : contract === "blocked" ? "The contract blocked the payment" : contract === "unconfirmed" ? "Contract decision unconfirmed" : (d.action === "pay" ? "The contract was not called" : "The contract blocked the payment (never requested)"),
     policy_check: contract === "allowed" ? "All contract spending checks passed" : detail?.reason || (d.action === "pay" ? "No valid recipient" : "AI did not request payment"),
-    payment: outcome === "win" ? `paid ${toNear(detail.amount)} NEAR to ${detail.to} (NEAR ${NET}, transfer succeeded)` : contract === "allowed" ? "transfer failed, not paid" : "not paid",
+    payment: outcome === "win" ? `paid ${toNear(detail.amount)} NEAR to ${detail.to} (NEAR ${NET}, transfer succeeded)` : detail?.status === "Failed" ? "transfer failed, not paid" : detail?.near_tx ? "payout unconfirmed, see the NEAR tx" : "not paid",
     near_tx: detail?.near_tx || null, explorer: EXPLORER,
     attestation_url: "https://cloud-api.near.ai/v1/attestation/report?model=" + encodeURIComponent(model) + "&signing_algo=ecdsa",
     attestation_note: "NEAR AI Cloud attestation report available; this app does not fully verify attestation or response signatures.",

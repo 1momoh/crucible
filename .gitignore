@@ -13,3 +13,7 @@ agent/*.log
 .crucible/
 *.pem
 web/game.archive.json
+
+scripts/pot-test-results*.json
+scripts/attack-demo.log
+agent/orchestrator-run.log

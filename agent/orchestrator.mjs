@@ -1,20 +1,21 @@
 // Crucible agent orchestrator (skeleton).
-// LLM: NEAR AI Cloud (verifiable model) when NEARAI_API_KEY is set; otherwise TEMPORARY fallback to Hermes on 127.0.0.1:8642 (not attested).
+// LLM: NEAR AI Cloud; attestation report available but not verified here.
 // The LLM only decides; it acts through the restricted agent key, and the contract enforces every hard limit.
 import fs from "fs";
 import { loadAccount, view, G, GAME, errMsg } from "../scripts/lib.mjs";
 import { client } from "../scripts/evm.mjs";
 
 // NEAR AI Cloud key: NEARAI_API_KEY, else /root/.crucible/nearai_key (chmod 600, never committed).
-const nearKey = () => process.env.NEARAI_API_KEY || (() => { try { return fs.readFileSync("/root/.crucible/nearai_key", "utf8").trim(); } catch { return ""; } })();
+const KEYS = (process.env.CRUCIBLE_KEYS || "/root/.crucible").replace(/\/+$/, "");
+const nearKey = () => process.env.NEARAI_API_KEY || (() => { try { return fs.readFileSync(KEYS + "/nearai_key", "utf8").trim(); } catch { return ""; } })();
 export const NEAR_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash-1017", NEAR_API = "https://cloud-api.near.ai/v1";
 // Price per token for the model above (from /v1/models), used to log spend.
 export const NEAR_PRICE = { in: 0.3e-6, out: 1.2e-6 };
 export const attestationUrl = (m = NEAR_MODEL) => `${NEAR_API}/attestation/report?model=${encodeURIComponent(m)}&signing_algo=ecdsa`;
 export function near() { const key = nearKey(); if (!key) return null;
   // thinking off: DeepSeek V4.1 is a reasoning model; we only need a short JSON verdict, so no reasoning tokens are paid for.
-  return { name: "near-ai-cloud", attested: true, url: NEAR_API + "/chat/completions", key, model: NEAR_MODEL, headers: { "x-no-aliasing": "true" }, extra: { chat_template_kwargs: { thinking: false } } }; }
-export function hermes() { return { name: "hermes-local (fallback, NOT attested)", attested: false, url: "http://127.0.0.1:8642/v1/chat/completions", key: fs.readFileSync("/root/.crucible/hermes_key", "utf8").trim(), model: "hermes-agent", headers: {}, extra: {} }; }
+  return { name: "near-ai-cloud", attested: false, attestation_available: true, url: NEAR_API + "/chat/completions", key, model: NEAR_MODEL, headers: { "x-no-aliasing": "true" }, extra: { chat_template_kwargs: { thinking: false } } }; }
+export function hermes() { return { name: "hermes-local (fallback, NOT attested)", attested: false, url: "http://127.0.0.1:8642/v1/chat/completions", key: fs.readFileSync(KEYS + "/hermes_key", "utf8").trim(), model: "hermes-agent", headers: {}, extra: {} }; }
 export function provider() { const n = near(); if (!n) throw new Error("NEAR AI Cloud key missing: the guard runs only on NEAR AI Cloud."); return n; } // no Hermes fallback
 // Invoice registry = the legitimate work the treasurer may pay for.
 export const VENDORS = { "0x1111111111111111111111111111111111111111": "Acme Hosting" };

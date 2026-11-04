@@ -1,9 +1,0 @@
-{
-  "account": "crucible-11011136.testnet",
-  "path": "ethereum-1",
-  "derived_pk": "secp256k1:5hmVVLMUidqDChnKbVwFJWPWWQUyf2gY1PQapYGm2vAvjDYyGm1C5Q7MDP1sy4kJbPw1vZmGwaL4CoVtwsGFqPJ9",
-  "sepolia_address": "0xEe3cA90821F4c644f6e5ca9061CD954D11b91714",
-  "payload": "0x42df3799d471f31e13c93360ec21523a053f3e69fc636febcf16832cda91c77a",
-  "tx": "HfDYrH6uB65hYo5eNjTrgXAozbvJZrvTZU9DwyPR8CCL",
-  "recovered": "0xEe3cA90821F4c644f6e5ca9061CD954D11b91714"
-}

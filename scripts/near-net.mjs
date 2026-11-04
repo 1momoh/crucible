@@ -9,7 +9,7 @@ const SUF = NET === "mainnet" ? ".near" : ".testnet";
 export const RPC = process.env.NEAR_RPC || (NET === "mainnet" ? "https://rpc.mainnet.fastnear.com" : "https://test.rpc.fastnear.com");
 export const EXPLORER = NET === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
 export const POT = process.env.POT_CONTRACT || "";
-const D = "/root/.crucible/";
+const D = (process.env.CRUCIBLE_KEYS || "/root/.crucible").replace(/\/+$/, "") + "/";
 export const OWNER_KEY = process.env.POT_OWNER_KEY || D + `pot-owner.${NET}.json`, AGENT_KEY = process.env.POT_AGENT_KEY || D + `pot-agent.${NET}.json`;
 export const G = 100_000_000_000_000n;
 export const YOCTO = 10n ** 24n;

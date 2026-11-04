@@ -2,7 +2,7 @@ import { connect, keyStores, KeyPair } from "near-api-js";
 import fs from "fs";
 export const G = 300000000000000n;
 export const GAME = "crucible-11011136.testnet";
-const D = "/root/.crucible/";
+const D = (process.env.CRUCIBLE_KEYS || "/root/.crucible").replace(/\/+$/, "") + "/";
 // kind "" = game/owner account (full key). kind "agent" = the agent's OWN account, holding only a function-call key.
 export async function loadAccount(kind = "") {
   let id, key;

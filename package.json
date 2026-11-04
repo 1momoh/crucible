@@ -1,0 +1,18 @@
+{
+  "name": "crucible",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "node web/server.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.4.0",
+    "@noble/secp256k1": "^2.3.0",
+    "bitcoinjs-lib": "^6.1.10",
+    "chainsig.js": "^1.1.16",
+    "dotenv": "^18.0.9",
+    "near-api-js": "^5.1.1",
+    "viem": "^2.57.14"
+  }
+}

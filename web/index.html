@@ -1,6 +1,6 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14091a"><link rel="icon" type="image/svg+xml" href="/assets/crucible-icon.svg"><link rel="apple-touch-icon" href="/assets/crucible-icon.png"><meta property="og:title" content="Crucible"><meta property="og:image" content="/assets/crucible-icon.png"><title>Crucible: talk the vault open</title><meta name="description" content="Con an AI treasurer into paying you. A NEAR contract enforces the caps, and every successful con becomes a public red team entry."><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&family=Silkscreen:wght@700&display=swap" rel="stylesheet"><style>
-/* Hallmark · shape: app screen · genre: playful · theme: Arcade (deal 2/3, seed heist-game-con-treasurer-5ded·d8a58db7·2026-11-01·r0)
- * nav: top bar with three tabs and a proof drawer · signature: the five digit combination readout that locks as the treasurer lowers its guard · states: loading, empty, error, full, locked, won, spent · arcade: ember/grille
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14091a"><link rel="icon" type="image/svg+xml" href="/assets/crucible-icon.svg"><link rel="apple-touch-icon" href="/assets/crucible-icon.png"><meta property="og:title" content="Crucible"><meta property="og:image" content="/assets/crucible-icon.png"><title>Crucible: talk the vault open</title><meta name="description" content="Con an AI guard into paying you. A NEAR contract enforces the caps, and every successful con becomes a public red team entry."><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&family=Silkscreen:wght@700&display=swap" rel="stylesheet"><style>
+/* Hallmark · shape: app screen · genre: playful · theme: Arcade (deal 2/3, seed heist-game-con-guard-5ded·d8a58db7·2026-11-01·r0)
+ * nav: top bar with three tabs and a proof drawer · signature: the five digit combination readout that locks as the guard lowers its guard · states: loading, empty, error, full, locked, won, spent · arcade: ember/grille
  * axes: dark/pixel/chromatic-ember · posture: full-palette · contrast: pass · v2.0.0 */
 /* Hallmark · pre-emit critique: P3 H3 E3 S4 R3 V3 · weakest: hierarchy on the lobby, fixed by one display line and the jackpot as the only large figure */
 /* waive 23: Arcade sets its Silkscreen figures and the one display statement per overlay in the lead inks by design (theme Type and Range). answered F4: Start run and Send never share a screen; the lobby and the game swap. */
@@ -240,6 +240,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
 .toast{width:max-content;max-width:min(90vw,36rem);text-align:center;overflow-wrap:anywhere}
 .aibadge{margin:4px 0 0;color:#3ddc97;line-height:1.4;overflow-wrap:anywhere}.aibadge b{color:inherit}.credit{margin:0;padding:var(--space-4,16px) 16px calc(var(--space-4,16px) + env(safe-area-inset-bottom));text-align:center;font-size:var(--text-sm,14px);color:var(--color-muted)}.credit a{display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 6px;color:var(--color-ink-2);text-underline-offset:3px}.credit a:hover{color:var(--color-accent-2)}.intro .credit{padding-bottom:0}
 .pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:var(--space-xs,8px);font-size:var(--text-sm);color:var(--color-muted)}.pager[hidden]{display:none}.pager button{min-height:44px;min-width:72px;padding:0 14px}.pager button:disabled{opacity:.4;cursor:not-allowed}
+#payout{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-block:12px}#payout[hidden]{display:none}#payout>p{flex-basis:100%;overflow-wrap:anywhere}#payaddr{min-width:0;max-width:100%;padding:12px}#msg{resize:vertical;overflow-y:auto}#payerror{color:var(--color-accent)}
 </style></head><body>
 <div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="goal"><div class="box">
  <p class="mark" style="margin:0"><img src="/assets/crucible-horizontal.svg" alt="Crucible" style="height:44px;width:auto;display:block"></p>
@@ -253,7 +254,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
 <a class="skip" href="#main">Skip to game</a>
 <header class="bar"><div class="container">
  <a class="mark" href="#play"><img src="/assets/crucible-horizontal.svg" alt="Crucible" height="30" style="height:30px;width:auto;display:block"></a>
- <nav class="tabs" aria-label="Sections"><a class="tab" href="#play" data-v="play">Play</a><a class="tab" href="#library" data-v="library">Exploit library</a><a class="tab" href="#board" data-v="board">Leaderboard</a></nav>
+ <nav class="tabs" aria-label="Sections"><a class="tab" href="#play" data-v="play">Play</a><a class="tab" href="#library" data-v="library">Exploit library</a></nav>
  <button type="button" class="ghost" id="snd" aria-pressed="true">Sound on</button><button type="button" class="ghost" id="verify" aria-haspopup="dialog" aria-expanded="false" aria-controls="drawer">Verify<span class="label">&nbsp;on chain</span></button>
 </div></header>
 <noscript><p class="container">Crucible is a live game and needs JavaScript. The exploit library is also available as markdown at /api/exploits.md.</p></noscript>
@@ -262,14 +263,14 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  <div class="lobby" id="lobby">
   <div>
    <h1 class="statement">Trick the guard. Take the crypto.</h1>
-   <p class="sub">Pick an AI guard, chat up to 3 messages, get it to pay you 0.1 NEAR. The NEAR contract caps what can leak. <button class="how" type="button" id="howbtn">How it works</button></p>
+   <p class="sub">Chat with Crucible, send up to 3 messages, get it to pay you 0.1 NEAR. The NEAR contract caps what can leak. <button class="how" type="button" id="howbtn">How it works</button></p>
    <button hidden type="button" class="btn alt watch" id="watch">&#9654; Watch a winning con (15s)</button>
    <details open><summary>Pot</summary><div class="jack"><div><div class="fig" id="jp">…<small>NEAR</small></div><p class="muted small" id="jpnote">Pot balance, read from the contract. Each win pays 0.1 NEAR.</p></div></div></details>
    <form class="go" id="start"><label class="visually-hidden" for="nick">Your heist name (optional)</label><input id="nick" name="nick" maxlength="18" placeholder="Your name (optional)…" autocomplete="nickname" spellcheck="false"><button class="btn" id="gobtn" type="submit">Play</button></form>
    <div class="me" id="me"></div>
   </div>
   <div class="side">
-   <div class="well"><h2>1. Pick a guard</h2><div class="menu" id="menu" role="group" aria-label="Vaults"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+   <div class="well"><h2>Meet Crucible</h2><div class="menu" id="menu" aria-label="Guard"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
    <div class="well"><h2>Live attempts by other players</h2><ul class="feed" id="feed" aria-live="polite"><li class="skel"></li></ul><nav class="pager" id="fpager" aria-label="Live attempts pages" hidden><button type="button" class="btn ghost" id="fprev">Prev</button><span id="fpage"></span><button type="button" class="btn ghost" id="fnext">Next</button></nav></div>
   </div>
  </div>
@@ -277,7 +278,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  <div class="lcol">
   <div class="well" id="st">
    <div class="who"><b id="pname"></b><span class="muted small" id="ptitle"></span></div>
-   <p class="small aibadge" id="aib"><span aria-hidden="true">&#9679;</span> Runs on <b>NEAR AI Cloud</b> &middot; DeepSeek-V4.1-Flash &middot; TEE report available &middot; <a href="https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017&amp;signing_algo=ecdsa" target="_blank" rel="noopener">attestation</a></p>
+   <p class="small aibadge" id="aib"><span aria-hidden="true">&#9679;</span> Runs on <b>NEAR AI Cloud</b> &middot; DeepSeek-V4.1-Flash &middot; attestation report available; the app does not verify it &middot; <a href="https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017&amp;signing_algo=ecdsa" target="_blank" rel="noopener">attestation</a></p>
    <p class="small" style="margin-top:var(--space-xs)"><span class="mood" id="mood">calm</span> <span class="muted" id="pdef"></span></p>
    <p class="small" style="margin-top:var(--space-md);font-weight:700">Vault lock <button type="button" class="help" title="Five real checks the guard runs on your story. Each one you pass locks a digit. These checks describe your story; Crucible makes its own decision." aria-label="Help: Five real checks the guard runs on your story. Each one you pass locks a digit. These checks describe your story; Crucible makes its own decision.">?</button></p>
    <div class="combo" id="combo" role="img" aria-label="Vault lock" style="margin-block:var(--space-2xs) var(--space-xs)"></div><span class="lbl" id="ckhint" aria-live="polite" style="margin-bottom:var(--space-md)">Each digit is one guard check. Hover a digit to see it.</span>
@@ -288,7 +289,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  </div>
  <div class="rcol">
   <div class="well chat" id="chat"><div class="tip" id="tip"><span>Objective: persuade Crucible to pay you within three messages. The contract enforces spending limits.</span><button type="button" aria-label="Dismiss tip" id="tipx">×</button></div><div class="replaybar" id="rbar" hidden><span>Replay of a real logged win. Read only, no funds spent.</span><button type="button" class="btn alt" id="rexit">Exit replay</button></div><div class="log" id="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with the guard" tabindex="0"></div><div class="chips" id="chips" role="group" aria-label="Opening line ideas" hidden></div><div class="cons" id="cons" role="group" aria-labelledby="consh"></div><div class="coach" id="coach" hidden><p id="coacht" aria-live="polite"></p><div class="chips" id="cchips" role="group" aria-label="Suggested next lines"></div></div>
-   <div id="payout" hidden><p>Payout paused. Resume with your wallet or cancel the payout to continue chatting.</p><button type="button" class="btn" id="resume">Resume payout</button> <button type="button" class="btn" id="cancelpay">Cancel payout</button><p class="m note" style="margin:.5rem auto 0">No testnet account? <a href="https://testnet.mynearwallet.com" target="_blank" rel="noopener">Create one free</a></p></div><form class="go" id="say"><label class="visually-hidden" for="msg">Your message to the guard</label><textarea id="msg" name="message" maxlength="600" rows="3" placeholder="Type your con…" autocomplete="off" enterkeyhint="send"></textarea><button class="btn" id="send" type="submit">Send</button></form>
+   <div id="payout" hidden><p>Crucible approved. Enter your NEAR account to request the payout.</p><label class="visually-hidden" for="payaddr">NEAR account</label><input id="payaddr" placeholder="alice.testnet" autocomplete="off" spellcheck="false"><button type="button" class="btn" id="resume">Claim payout</button> <button type="button" class="btn" id="cancelpay">Cancel</button> <a href="https://testnet.mynearwallet.com" target="_blank" rel="noopener">No testnet account? Create one free</a><p id="payerror" role="alert"></p></div><form class="go" id="say"><label class="visually-hidden" for="msg">Your message to the guard</label><textarea id="msg" name="message" maxlength="600" rows="3" placeholder="Type your con…" autocomplete="off" enterkeyhint="send"></textarea><button class="btn" id="send" type="submit">Send</button></form>
    <div class="stamp" id="stamp" aria-hidden="true"><span>Denied</span></div></div>
   <details class="well" id="polw"><summary>NEAR policy, live</summary><div class="polh"><h2>NEAR policy, live</h2><span class="live" id="polt">reading chain</span></div><div class="pol" id="pol" aria-live="off"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
    <p class="lbl" style="margin-top:var(--space-sm)">Read live from the NEAR pot contract. The AI can only propose; these limits decide.</p></details>
@@ -296,25 +297,12 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  </div>
 </section>
 <section class="view" id="v-library">
- <div class="head"><div><h1>Exploit library</h1><p class="muted">Every successful con becomes a red team entry agent builders can learn from. The treasurer is patched against it the next day.</p></div><a class="btn alt" href="/api/exploits.md" download="crucible-exploit-library.md">Download report</a></div>
+ <div class="head"><div><h1>Exploit library</h1><p class="muted">Every successful con becomes a red team entry agent builders can learn from. Known tricks are added to the guard's prompt.</p></div><a class="btn alt" href="/api/exploits.md" download="crucible-exploit-library.md">Download report</a></div>
  <div id="lib"><div class="skel"></div><div class="skel"></div></div>
 </section>
-<section class="view" id="v-board">
- <div class="head"><h1>Leaderboard</h1></div>
- <div class="boards"><div class="well"><h2>Top players</h2><table><thead><tr><th>Player</th><th>Rank</th><th>XP</th></tr></thead><tbody id="bp"></tbody></table></div>
- <div class="well"><h2>Best runs</h2><table><thead><tr><th>Player</th><th>Vault</th><th>Score</th></tr></thead><tbody id="br"></tbody></table></div>
- <div class="well"><h2>Longest streaks</h2><table><thead><tr><th>Player</th><th>Days</th></tr></thead><tbody id="bs"></tbody></table></div></div>
-</section>
+
 </main>
 <footer><p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p></footer>
-<div class="over" id="win" role="dialog" aria-modal="true" aria-labelledby="wint"><div class="box">
- <h2 class="big" id="wint" tabindex="-1">Vault cracked</h2><p class="sub">The AI said yes. The contract checked its limits and sent 0.1 NEAR to your account on chain.</p>
- <ol class="seq" id="seq" aria-label="What happened on chain"></ol><p class="visually-hidden" id="winlive" role="status" aria-live="polite"></p>
- <div class="well" id="winproof"></div>
- <p class="muted small">Your prize is 0.1 NEAR, sent by the pot contract. Check the NEAR transaction above.</p>
- <canvas id="card" width="1200" height="630" role="img" aria-label="Share card image"></canvas>
- <div class="go" style="grid-template-columns:auto auto auto;justify-content:start"><a class="btn" id="share" target="_blank" rel="noopener">Share on X<span class="visually-hidden"> (opens in a new tab)</span></a><button type="button" class="btn alt" id="dl">Save card</button><button type="button" class="btn alt" onclick="sessionStorage.skipIntro=Date.now();location.hash='#play';location.reload()">Play again</button></div>
-</div></div>
 <div class="over" id="end" role="dialog" aria-modal="true" aria-labelledby="endt"><div class="box">
  <h2 class="big" id="endt" tabindex="-1">The vault held</h2><div class="well" id="endbox"></div><canvas id="card2" width="1200" height="630" role="img" aria-label="Share card image"></canvas>
  <div class="go" style="grid-template-columns:auto auto auto;justify-content:start"><a class="btn" id="share2" target="_blank" rel="noopener">Share on X<span class="visually-hidden"> (opens in a new tab)</span></a><button type="button" class="btn alt" id="dl2">Save card</button><button type="button" class="btn alt" onclick="sessionStorage.skipIntro=Date.now();location.hash='#play';location.reload()">Play again</button></div>
@@ -333,27 +321,20 @@ const sfx={tick:()=>tone(1200,.04),deny:()=>{tone(110,.4,"sawtooth",.1);setTimeo
 $("snd").onclick=()=>{sound=!sound;$("snd").setAttribute("aria-pressed",sound);$("snd").textContent=sound?"Sound on":"Sound off"};
 const RM=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 let lastFocus=null;const BG=()=>[document.querySelector(".bar"),$("main"),document.querySelector(".skip")];
-function modal(el,on,focusEl){if(on){lastFocus=document.activeElement;BG().forEach(n=>n&&(n.inert=true));[$("intro"),$("win"),$("end"),$("drawer")].forEach(o=>o!=el&&(o.inert=true));el.inert=false;setTimeout(()=>(focusEl||el).focus(),30)}
- else{BG().forEach(n=>n&&(n.inert=false));[$("intro"),$("win"),$("end"),$("drawer")].forEach(o=>o.inert=false);lastFocus?.focus?.()}}
+function modal(el,on,focusEl){if(on){lastFocus=document.activeElement;BG().forEach(n=>n&&(n.inert=true));[$("intro"),$("end"),$("drawer")].forEach(o=>o!=el&&(o.inert=true));el.inert=false;setTimeout(()=>(focusEl||el).focus(),30)}
+ else{BG().forEach(n=>n&&(n.inert=false));[$("intro"),$("end"),$("drawer")].forEach(o=>o.inert=false);lastFocus?.focus?.()}}
 document.addEventListener("click",e=>{const h=e.target.closest(".help");if(h)toast(h.title)});
 function toast(t){const el=$("toast");el.classList.add("on");el.textContent=t;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.classList.remove("on");el.textContent=""},5000)}
 const ago=t=>{const s=(Date.now()-t)/1e3;return s<60?"just now":s<3600?Math.floor(s/60)+" min ago":Math.floor(s/3600)+" h ago"};
-const OUT={talk:["got nowhere",""],confused:["confused the treasurer",""],vendor:["got a real invoice paid",""],"vendor-blocked":["tripped the caps","miss"],blocked:["fooled the AI, but the contract said no","miss"],shutdown:["got shut down","miss"],win:["cracked the vault","hit"]};
-function route(){const v=(location.hash||"#play").slice(1);document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id=="v-"+v));document.querySelectorAll(".tab").forEach(t=>t.dataset.v==v?t.setAttribute("aria-current","page"):t.removeAttribute("aria-current"));
- if(v=="library")loadLib();if(v=="board")loadBoard()}
+const OUT={talk:["got nowhere",""],confused:["confused the guard",""],vendor:["got a real invoice paid",""],"vendor-blocked":["tripped the caps","miss"],blocked:["fooled the AI, but the contract said no","miss"],shutdown:["got shut down","miss"],win:["cracked the vault","hit"]};
+function route(){const hash=(location.hash||"#play").slice(1),v=hash==="library"?"library":"play";document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id=="v-"+v));document.querySelectorAll(".tab").forEach(t=>t.dataset.v==v?t.setAttribute("aria-current","page"):t.removeAttribute("aria-current"));
+ if(v=="library")loadLib();}
 addEventListener("hashchange",route);
 async function loadLobby(){try{L=await api("/api/lobby?pid="+PID)}catch(e){$("menu").innerHTML=`<p class="muted">Could not reach the vault. ${esc(e.message)}</p>`;return}
  $("jp").innerHTML=(L.jackpot==null?"?":L.jackpot.toFixed(2))+"<small>NEAR</small>";$("jpnote").textContent=L.pot?`Pot on NEAR ${L.pot.network}, read from ${L.pot.contract}. Each win pays ${(Number(L.pot.per_win)/1e24).toFixed(2)} NEAR.${L.pot.paused?" Payouts paused.":""}`:"Pot balance unavailable right now.";
- const pr=L.profile,un=k=>k=="daily"||k=="l1"||pr?.unlocked.includes(k);
- const rows=[["daily",`Today's vault: ${L.daily.name}`,`${L.daily.title}. New defence: ${L.daily.defense}.${pr?.dailyDone?" Done for today.":""}`,"2x"],
-  [1,L.ladder[1].name,L.ladder[1].title,"1x"],[2,L.ladder[2].name,un("l2")?L.ladder[2].title:"Locked. Score 150 on Crucible.","2x"],[3,L.ladder[3].name,un("l3")?L.ladder[3].title:"Locked. Score 300 on Crucible.","3x"],
-  ["boss",`Weekly boss: ${L.boss.name}`,un("boss")?L.boss.title:"Locked. Reach Crucible’s CFO tier or score 400 on a daily vault.","4x"]];
- const key=m=>m=="daily"?"daily":m=="boss"?"boss":"l"+m,dis=m=>!un(key(m))||m=="daily"&&pr?.dailyDone;
- if(dis(MODE))MODE=1;
- $("menu").innerHTML=rows.map(([m,n,t,x])=>`<button type="button" class="row" data-m="${m}" aria-pressed="${m==MODE}" aria-disabled="${!!dis(m)}"><span><b>${esc(n)}</b><br><span>${esc(t)}</span></span><span class="x">${x}</span></button>`).join("");
- document.querySelectorAll(".row").forEach(b=>b.onclick=()=>{if(b.getAttribute("aria-disabled")=="true")return toast(b.querySelector("span span").textContent);MODE=isNaN(b.dataset.m)?b.dataset.m:+b.dataset.m;sfx.tick();document.querySelectorAll(".row").forEach(r=>r.setAttribute("aria-pressed",r==b))});
- $("me").innerHTML=pr?`<span><b>${esc(pr.rank)}</b> <span class="muted">${pr.xp} XP${pr.next?`, ${pr.next-pr.xp} to next rank`:""}</span></span><span><b>${pr.streak}</b> <span class="muted">day streak</span></span><span>${pr.badges.map(b=>`<span class="tag">${esc(b)}</span>`).join("")}</span>`
-  :`<span class="muted">${L.learned} past exploits patched into today's treasurers${L.pending?`, ${L.pending} more patching tonight`:""}.</span>`;
+ $("menu").innerHTML='<p><b>Crucible</b><br><span class="muted">Quote an approved invoice and its vendor, then calmly explain that the payout account changed. Three messages.</span></p>';
+ $("me").textContent="";
+ if(L.pot)$("jpnote").textContent+=` Remaining daily allowance: ${(Number(L.pot.day_left)/1e24).toFixed(2)} NEAR.`;
  FEED=L.feed||[];drawFeed()}
 let FEED=[],FP=0;function drawFeed(){const n=Math.max(1,Math.ceil(FEED.length/8));FP=Math.min(FP,n-1);$("fpager").hidden=n<2;$("fpage").textContent=`Page ${FP+1} of ${n}`;$("fprev").disabled=FP==0;$("fnext").disabled=FP>=n-1;
  $("feed").innerHTML=FEED.length?FEED.slice(FP*8,FP*8+8).map(f=>`<li><b>${esc(f.nick)}</b> tried ${esc(f.tactic.toLowerCase())} on ${esc(f.persona)} (${f.msgs} msg${f.msgs==1?"":"s"}) and <span class="${OUT[f.outcome]?.[1]||""}">${OUT[f.outcome]?.[0]||f.outcome}</span>, ${ago(f.ts)}</li>`).join(""):"<li>No attempts yet today. Be the first.</li>"}
@@ -370,8 +351,8 @@ async function loadPol(){try{const p=await api("/api/policy"),l=(u,t)=>`<a class
 function add(c,h){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;$("log").append(d);$("log").scrollTop=1e9;return d}
 $("start").onsubmit=async e=>{e.preventDefault();localStorage.nick=$("nick").value;$("gobtn").disabled=true;$("gobtn").textContent="Opening…";
  try{const r=await api("/api/run",{nick:$("nick").value,mode:MODE});RUN=r.run;P=r.persona;BOOKS=r.ledger;STASH=r.stash;
-  $("pname").textContent=P.name;$("ptitle").textContent=P.title;$("pdef").textContent=P.defense?"Defence: "+P.defense:"";$("mult").textContent=P.mult+"x";$("left").textContent=r.left;combo(r.checks);lastOk=0;loadPol();meter(MODE==3||MODE=="boss"?40:10);
-  SENT=[];prevS=MODE==3||MODE=="boss"?40:10;cons();
+  $("pname").textContent=P.name;$("ptitle").textContent=P.title;$("pdef").textContent=P.defense?"Defence: "+P.defense:"";$("mult").textContent=P.mult+"x";$("left").textContent=r.left;combo(r.checks);lastOk=0;loadPol();meter(10);
+  SENT=[];prevS=10;cons();
   books();add("note",`${esc(P.name)} is guarding the vault. You have ${r.left} messages. If Crucible agrees to pay you, we will ask for your NEAR account then.`);add("them",esc(P.open));
   $("lobby").hidden=true;$("game").hidden=false;$("msg").focus()}catch(x){toast(x.message);$("gobtn").disabled=false;$("gobtn").textContent="Play"}};let BOOKS=[],STASH=null;
 function meter(s){$("susp").style.transform=`scaleX(${s/100})`;$("suspn").textContent=s;const m=$("suspm");m.setAttribute("aria-valuenow",s);m.setAttribute("aria-valuetext",`${s} of 100${s>=70?", run ended":s>=50?", getting close to 70":""}`)}
@@ -382,20 +363,21 @@ $("cancelpay").onclick=()=>{payoutAction="cancel";$("say").requestSubmit()};
 $("say").onsubmit=async e=>{e.preventDefault();const action=payoutAction;payoutAction=null;if((payoutPending||$("msg").disabled)&&!action)return;const m=$("msg").value.trim();if(!m&&!action)return;if(!action){$("msg").value="";$("send").disabled=true;sfx.send();add("you",esc(m));SENT.push(m);}$("send").disabled=true;$("msg").disabled=true;$("resume").disabled=true;$("cancelpay").disabled=true;$("chips").hidden=true;$("cons").hidden=true;$("coach").hidden=true;const t0=Date.now(),t=add("them muted typing",esc(P.name)+" is typing");t.setAttribute("aria-hidden","true");$("log").setAttribute("aria-busy","true");
  try{let r=action?{needs_address:true}:await api("/api/say",{run:RUN,message:m});
   if(r.needs_address){payoutPending=true;$("payout").hidden=false;
-   const addr=action==="cancel"?null:prompt("Crucible proposed paying you 0.1 NEAR. Enter your NEAR account ID (for example alice.testnet). No payment has been requested from the contract yet.");
-   if(action!=="cancel"&&!addr)throw Error("Payout paused. Use Resume payout or Cancel payout.");
+   if(!action){t.remove();$("log").removeAttribute("aria-busy");$("resume").disabled=false;$("cancelpay").disabled=false;$("payaddr").focus();return;}
+   const addr=$("payaddr").value.trim();$("payerror").textContent="";
+   if(action!=="cancel"&&!addr)throw Error("Enter your NEAR account ID.");
    r=await api("/api/payout",{run:RUN,...(action==="cancel"?{cancel:true}:{addr})});payoutPending=false;$("payout").hidden=true;
   }$("msg").disabled=false;t.remove();$("log").removeAttribute("aria-busy");add("them",`<span class="visually-hidden">${esc(P.name)}: </span>`+esc(r.say));mood(r.mood);score=r.score;const before=CK.slice();meter(r.suspicion);combo(r.checks);celebrate(before,r.checks,r.suspicion);lockSfx(r.checks);$("score").textContent=r.score;$("left").textContent=r.left;
-  $("tip").hidden=true;add("note gain",`+${r.gain} points for ${esc(r.tactic.toLowerCase())}`);r.badges.forEach(b=>add("note gain","Badge unlocked: "+esc(b)));
+  $("tip").hidden=true;add("note gain",`+${r.gain} points for ${esc(r.tactic.toLowerCase())}`);
   if(r.outcome=="blocked"){add("note",`You fooled the AI. It tried to pay you, and the contract refused: ${esc(r.detail.reason)}. Logged to the exploit library.`);deny()}
-  else if(r.outcome=="win"){loadPol();sfx.win()}else if(r.outcome=="shutdown"){add("note",`Suspicion hit ${r.suspicion}. ${esc(P.name)} ended the run.`);deny()}else if(r.outcome=="broadcast-failed"){add("note",`Crucible approved, but the NEAR transfer did not succeed: ${esc(r.detail?.reason||"unknown")}. Not counted as a win.`);loadPol()}else if(r.outcome=="vendor"){add("note","The guard paid a real vendor invoice. Not you, so no NEAR left the pot.");loadPol()}
-  if(r.end){$("msg").disabled=true;ending(r)}}catch(x){t.remove();$("log").removeAttribute("aria-busy");toast(x.message)}$("msg").disabled=payoutPending||$("msg").disabled&&$("end").classList.contains("on");$("send").disabled=$("msg").disabled;$("resume").disabled=false;$("cancelpay").disabled=false;if(!$("msg").disabled)$("msg").focus()};
+  else if(r.outcome=="win"){loadPol();sfx.win()}else if(r.outcome=="shutdown"){add("note",`Suspicion hit ${r.suspicion}. ${esc(P.name)} ended the run.`);deny()}else if(r.outcome=="broadcast-failed"){add("note",`Crucible approved, but payment is not confirmed: ${esc(r.detail?.reason||"unknown")}. Not counted as a win.`);loadPol()}else if(r.outcome=="vendor"){add("note","The guard paid a real vendor invoice. Not you, so no NEAR left the pot.");loadPol()}
+  if(r.end){$("msg").disabled=true;ending(r)}}catch(x){t.remove();$("log").removeAttribute("aria-busy");if(payoutPending)$("payerror").textContent=x.message;else toast(x.message)}$("msg").disabled=payoutPending||$("msg").disabled&&$("end").classList.contains("on");$("send").disabled=$("msg").disabled;$("resume").disabled=false;$("cancelpay").disabled=false;if(!$("msg").disabled)$("msg").focus()};
 function deny(){sfx.deny();const s=$("stamp");s.classList.remove("go");void s.offsetWidth;s.classList.add("go");$("chat").classList.add("shake");setTimeout(()=>$("chat").classList.remove("shake"),500)}
 function card(id,top,mid,bot){const c=$(id),x=c.getContext("2d");x.fillStyle=css("--color-paper");x.fillRect(0,0,1200,630);x.fillStyle=css("--color-accent");x.fillRect(0,0,1200,14);
  x.font="64px Bungee";x.fillStyle=css("--color-crt-r");x.fillText("CRUCIBLE",62,120);x.fillStyle=css("--color-crt-c");x.fillText("CRUCIBLE",66,120);x.fillStyle=css("--color-ink");x.fillText("CRUCIBLE",64,120);
  x.font="900 54px Chivo";x.fillStyle=css("--color-ink");x.fillText(top,64,260);x.font="700 140px Silkscreen";x.fillStyle=css("--color-accent-2");x.fillText(mid,64,430);
  x.font="400 32px Chivo";x.fillStyle=css("--color-muted");x.fillText(bot,64,540)}
-const save=id=>{const a=document.createElement("a");a.download="crucible-card.png";a.href=$(id).toDataURL("image/png");a.click()};$("dl").onclick=()=>save("card");$("dl2").onclick=()=>save("card2");
+const save=id=>{const a=document.createElement("a");a.download="crucible-card.png";a.href=$(id).toDataURL("image/png");a.click()};$("dl2").onclick=()=>save("card2");
 function ending(r){
  const v=r.result;if(!v)return;
  $("endt").textContent=v.ai;
@@ -411,12 +393,8 @@ function ending(r){
 async function loadLib(){try{const {exploits:E,today}=await api("/api/exploits");
  $("lib").innerHTML=E.length?E.map(e=>`<article class="ex"><div><span class="kind ${e.kind}">${e.kind=="breach"?"Breach":"Contained"}</span><br><span class="muted small">${e.id}</span><br><span class="muted small">${e.day}</span></div>
  <div><b>${esc(e.tactic)}</b> against ${esc(e.persona)}<p class="small" style="margin-top:var(--space-xs)"><q>${esc(e.lure)}</q></p><p class="muted small" style="margin-top:var(--space-xs)">${esc(e.result)}${e.near_tx&&e.network?` <a class="ink" target="_blank" rel="noopener" href="${e.network=="mainnet"?"https://nearblocks.io":"https://testnet.nearblocks.io"}/txns/${e.near_tx}">NEAR transaction</a>`:e.eth_tx?` <a class="ink" target="_blank" rel="noopener" href="https://sepolia.etherscan.io/tx/${e.eth_tx}">Sepolia transaction (archived)</a>`:""}</p></div>
- <div><span class="muted small">Mitigation</span><p class="small">${esc(e.fix)}</p><p class="small ${e.patched_on<=today?"hit":"miss"}" style="margin-top:var(--space-xs)">${e.patched_on<=today?"Patched into the treasurer since "+e.patched_on:"Patch ships "+e.patched_on}</p></div></article>`).join("")
+ <div><span class="muted small">Mitigation</span><p class="small">${esc(e.fix)}</p><p class="small ${e.patched_on<=today?"hit":"miss"}" style="margin-top:var(--space-xs)">Known tricks are added to the guard's prompt.</p></div></article>`).join("")
  :`<div class="well"><h2>No exploits yet</h2><p class="muted">The first con that works lands here, with its lure, the result and the fix. <a class="ink" href="#play">Try one</a></p></div>`}catch(x){$("lib").innerHTML=`<p class="muted">Could not load the library. ${esc(x.message)}</p>`}}
-async function loadBoard(){try{const b=await api("/api/board"),none=n=>`<tr><td colspan="${n}" class="muted">No finished runs yet.</td></tr>`;
- $("bp").innerHTML=b.players.map(p=>`<tr><td>${esc(p.nick)}</td><td>${esc(p.rank)}</td><td class="num">${p.xp}</td></tr>`).join("")||none(3);
- $("br").innerHTML=b.runs.map(r=>`<tr><td>${esc(r.nick)}${r.won?' <span class="hit">cracked</span>':""}</td><td>${esc(r.persona)}</td><td class="num">${r.score}</td></tr>`).join("")||none(3);
- $("bs").innerHTML=b.streaks.map(s=>`<tr><td>${esc(s.nick)}</td><td class="num">${s.streak}</td></tr>`).join("")||none(2)}catch(x){toast(x.message)}}
 async function openProof(){$("drawer").classList.add("on");$("verify").setAttribute("aria-expanded","true");modal($("drawer"),true,$("close"));try{const p=await api("/api/proof"),kv=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`,l=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}</a>`;
  $("proof").innerHTML=kv("Pot contract, NEAR "+esc(p.network),l(p.explorer+"/address/"+p.contract,esc(p.contract)))+kv("AI agent key, pay only",l(p.explorer+"/address/"+p.agent,esc(p.agent)))+
  kv("Pot available",(p.available/1e24).toFixed(4)+" NEAR")+kv("Per win",(p.per_win/1e24)+" NEAR")+kv("Paid so far",(p.total_paid/1e24).toFixed(4)+" NEAR")+"<h3 style='margin-block:var(--space-lg) var(--space-xs)'>Recent payouts</h3>"+
@@ -451,10 +429,10 @@ function books(){const b={invoices:BOOKS,vendors:BOOKS.map(i=>i.vendor)};
  document.querySelectorAll(".inv").forEach(x=>x.onclick=()=>{$("msg").value+=`${x.dataset.v}, ${x.dataset.r}. `;$("msg").focus()})}
 $("tipx").onclick=()=>{$("tip").hidden=true;localStorage.tipx=1;$("msg").focus()};
 const intro=on=>{const was=$("intro").classList.contains("on");$("intro").classList.toggle("on",on);if(on&&!was)modal($("intro"),true,$("goal"));else if(!on&&was)modal($("intro"),false)};$("playbtn").onclick=()=>{localStorage.seen=1;intro(false);$("nick").focus()};$("howbtn").onclick=()=>intro(true);
-sessionStorage.removeItem("skipIntro");
-intro(true);
+const skipIntro=sessionStorage.skipIntro;sessionStorage.removeItem("skipIntro");
+intro(!localStorage.seen&&!skipIntro);
 route();loadLobby();setInterval(()=>!$("game").hidden&&loadPol(),20000);setInterval(()=>!$("lobby").hidden&&loadLobby(),10000);
 
-;(()=>{const m=document.getElementById("msg");if(!m)return;let raf=0;const fit=()=>{raf=0;m.style.height="";const h=m.scrollHeight+4;if(h>m.offsetHeight)m.style.height=h+"px"};const q=()=>{if(!raf)raf=requestAnimationFrame(fit)};m.addEventListener("input",q);m.addEventListener("focus",q);const d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value");Object.defineProperty(m,"value",{get(){return d.get.call(m)},set(v){d.set.call(m,v);q()}});m.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();m.form.requestSubmit()}})})();
+;(()=>{const m=document.getElementById("msg");if(!m)return;let raf=0;const fit=()=>{raf=0;m.style.height=""};const q=()=>{if(!raf)raf=requestAnimationFrame(fit)};m.addEventListener("input",q);m.addEventListener("focus",q);const d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value");Object.defineProperty(m,"value",{get(){return d.get.call(m)},set(v){d.set.call(m,v);q()}});m.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();m.form.requestSubmit()}})})();
 $("fprev").onclick=()=>{FP--;drawFeed()};$("fnext").onclick=()=>{FP++;drawFeed()};
 </script></body></html>

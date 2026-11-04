@@ -3,7 +3,6 @@
  * nav: top bar with three tabs and a proof drawer · signature: the five digit combination readout that locks as the guard lowers its guard · states: loading, empty, error, full, locked, won, spent · arcade: ember/grille
  * axes: dark/pixel/chromatic-ember · posture: full-palette · contrast: pass · v2.0.0 */
 /* Hallmark · pre-emit critique: P3 H3 E3 S4 R3 V3 · weakest: hierarchy on the lobby, fixed by one display line and the jackpot as the only large figure */
-/* waive 23: Arcade sets its Silkscreen figures and the one display statement per overlay in the lead inks by design (theme Type and Range). answered F4: Start run and Send never share a screen; the lobby and the game swap. */
 :root {
   color-scheme: dark;
   --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
@@ -44,23 +43,23 @@ button, input, select, textarea { font: inherit; }
 .container { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); box-sizing: border-box; }
 .num, .figure, td.num { font-variant-numeric: tabular-nums; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-[data-slot] { position: relative; overflow: hidden; background: linear-gradient(160deg, var(--color-paper-2, var(--color-paper)), var(--color-paper-3, var(--color-paper))); }
-[data-slot] > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
-[data-slot]:has(> img) > :not(img):not([data-keep]) { display: none !important; }
+
+
+
 @media (max-width: 60rem) { :root { --gutter: 24px; --section-gap-s: 80px; --section-gap: 96px; --section-gap-l: 120px; } }
 @media (max-width: 40rem) { :root { --gutter: 16px; --section-gap-s: 56px; --section-gap: 72px; --section-gap-l: 96px; --gap-columns: 16px; } }
 @media (prefers-reduced-motion: reduce) { *:not(.keep-motion), *:not(.keep-motion)::before, *:not(.keep-motion)::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 /* photographs: tint accent */
-[data-slot]:has(> img) { isolation: isolate; background: var(--color-accent); outline: 1px solid color-mix(in oklab, var(--color-ink) 8%, transparent); outline-offset: -1px; }
-[data-slot] > img { z-index: 0; filter: grayscale(1); mix-blend-mode: multiply; }
-[data-slot]:has(> img)::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--color-paper); mix-blend-mode: lighten; pointer-events: none; }
+
+
+
 .bar{position:sticky;top:0;z-index:var(--z-sticky-nav);background:var(--color-paper);border-bottom:var(--rule-bar) solid var(--color-rule)}
 .bar .container{display:flex;align-items:center;gap:var(--space-lg);min-height:64px}
 .mark{font-family:var(--font-display);font-size:var(--text-xl);text-shadow:-1px 0 0 var(--color-crt-r),1px 0 0 var(--color-crt-c);text-decoration:none}
 .tabs{display:flex;gap:var(--space-2xs);margin-right:auto}
 .tab,.ghost{background:none;border:0;color:var(--color-muted);font-weight:700;padding:var(--space-xs) var(--space-sm);min-height:44px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;border-radius:var(--radius-card)}
 .tab:hover,.ghost:hover{color:var(--color-ink)}.tab[aria-current=page]{background:var(--color-accent);color:var(--color-accent-ink)}
-.tab:focus-visible,.ghost:focus-visible,.btn:focus-visible,.row:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px;transition:none}
+.tab:focus-visible,.ghost:focus-visible,.btn:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px;transition:none}
 .btn{background:var(--color-accent);color:var(--color-accent-ink);font-weight:700;border:var(--rule-bar) solid var(--color-ink);box-shadow:4px 4px 0 var(--color-accent-2);padding:0 var(--space-lg);min-height:52px;cursor:pointer;border-radius:var(--radius-card);transition:transform var(--dur-micro) var(--ease-out),box-shadow var(--dur-micro) var(--ease-out);text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--color-accent-2)}.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--color-accent-2)}
 .btn[disabled]{background:var(--color-paper-3);color:var(--color-muted);box-shadow:none;cursor:progress;transform:none}.btn.alt{background:var(--color-paper);color:var(--color-ink)}
@@ -79,10 +78,10 @@ main{padding-block:var(--space-xl) var(--space-2xl)}
 .well{background:var(--color-paper-2);border:var(--rule-bar) solid var(--color-rule);border-radius:var(--radius-card);padding:var(--space-lg)}
 .well h2{font-family:var(--font-body);font-weight:900;letter-spacing:-.02em;font-size:var(--text-xl);margin-bottom:var(--space-sm)}
 .menu{display:grid}
-.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-xs) var(--space-md);text-align:left;background:none;border:0;border-bottom:var(--rule-hair) solid var(--color-rule);color:var(--color-ink);padding:var(--space-sm) var(--space-sm);cursor:pointer;min-height:56px}
-.row b{font-weight:900}.row span{color:var(--color-muted);font-size:var(--text-sm)}.row .x{font-weight:700;color:var(--color-accent-2);align-self:center}
-.row:hover{background:var(--color-paper-3)}.row[aria-pressed=true]{background:var(--color-accent);color:var(--color-accent-ink)}.row[aria-pressed=true] span,.row[aria-pressed=true] .x{color:var(--color-accent-ink)}
-.row[aria-disabled=true]{cursor:not-allowed;opacity:.55}
+
+
+
+
 .me{display:flex;flex-wrap:wrap;gap:var(--space-xs) var(--space-lg);margin-top:var(--space-lg)}
 .tag{display:inline-block;border:var(--rule-hair) solid var(--color-rule);padding:var(--space-3xs) var(--space-xs);font-size:var(--text-sm);margin:var(--space-3xs)}
 .feed{list-style:none;margin:0;padding:0}.feed li{border-bottom:var(--rule-hair) solid var(--color-rule);padding:var(--space-xs) 0;font-size:var(--text-sm);color:var(--color-ink-2)}
@@ -105,8 +104,8 @@ main{padding-block:var(--space-xl) var(--space-2xl)}
 @keyframes pop{from{opacity:0;transform:translateY(6px)}}
 .m.you{align-self:flex-end;background:var(--color-paper-3);border-color:var(--color-accent)}.m.them{align-self:flex-start;background:var(--color-paper)}
 .m.note{align-self:center;border:0;color:var(--color-muted);font-size:var(--text-sm);text-align:center;max-width:90%}.m.note.gain{color:var(--color-accent-2);font-weight:700}
-.chips{display:flex;flex-wrap:wrap;gap:var(--space-xs);margin-bottom:var(--space-sm)}
-.chip{background:none;border:var(--rule-hair) dashed var(--color-rule);color:var(--color-ink-2);padding:var(--space-2xs) var(--space-sm);min-height:36px;cursor:pointer;font-size:var(--text-sm)}.chip:hover{border-color:var(--color-accent-2);color:var(--color-ink)}.chip:focus-visible{outline:2px solid var(--color-focus)}
+
+
 .stamp{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;opacity:0}
 .stamp span{font-family:var(--font-display);font-size:clamp(2.5rem,7vw,4.5rem);color:var(--color-accent);border:6px solid var(--color-accent);padding:var(--space-xs) var(--space-lg);transform:rotate(-10deg) scale(2.2);background:color-mix(in oklab,var(--color-paper) 80%,transparent)}
 .stamp.go{animation:fade 1.8s var(--ease-out) forwards}.stamp.go span{animation:slam var(--dur-short) var(--ease-in) forwards}
@@ -121,23 +120,20 @@ main{padding-block:var(--space-xl) var(--space-2xl)}
 .kv span{color:var(--color-muted)}.kv b{overflow-wrap:anywhere;text-align:right}
 a.ink{color:var(--color-ink);text-decoration:underline;text-decoration-color:var(--color-accent-2);text-decoration-thickness:2px}
 canvas{width:100%;height:auto;border:var(--rule-bar) solid var(--color-rule)}
-.coin{position:fixed;top:-30px;width:16px;height:16px;background:var(--color-accent-2);border:2px solid var(--color-ink);z-index:calc(var(--z-modal) + 1);animation:drop linear forwards;pointer-events:none}
-@keyframes drop{to{transform:translateY(110vh) rotate(540deg)}}
 .drawer{position:fixed;top:0;right:0;height:100%;width:min(480px,100%);background:var(--color-paper-2);border-left:var(--rule-bar) solid var(--color-rule);transform:translateX(100%);transition:transform var(--dur-long) var(--ease-out);z-index:var(--z-modal);padding:var(--space-lg);overflow:auto;visibility:hidden}
 .drawer.on{transform:none;visibility:visible}
-/* library and board */
+/* library */
 .head{display:flex;justify-content:space-between;align-items:end;gap:var(--space-lg);flex-wrap:wrap;margin-bottom:var(--space-lg)}
 .head h1{font-size:clamp(1.8rem,4vw,2.8rem);text-transform:uppercase;max-width:none}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:var(--space-sm) var(--space-xs);border-bottom:var(--rule-hair) solid var(--color-rule);vertical-align:top}
-th{font-weight:700;color:var(--color-muted);font-size:var(--text-sm)}td.num{text-align:right;font-weight:900}
+
+
 .ex{display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);gap:var(--space-md);border-bottom:var(--rule-hair) solid var(--color-rule);padding-block:var(--space-md)}
 .ex q{color:var(--color-ink);font-style:normal}.kind{font-weight:900}.kind.breach{color:var(--color-accent)}.kind.contained{color:var(--color-accent-2)}
-.boards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gap-columns)}
 .skel{height:14px;background:var(--color-paper-3);margin-block:var(--space-xs);animation:pulse 1.2s infinite alternate}@keyframes pulse{to{opacity:.4}}
-.toast{position:fixed;bottom:var(--space-lg);left:50%;transform:translateX(-50%);background:var(--color-accent);color:var(--color-accent-ink);padding:var(--space-sm) var(--space-md);font-weight:700;z-index:var(--z-toast);display:none;max-width:90vw}
-@media (max-width:60rem){.lobby,.game,.boards{grid-template-columns:minmax(0,1fr)}.ex{grid-template-columns:minmax(0,1fr)}.combo div{font-size:2rem}.chat{min-height:440px}.log{max-height:46vh}.label{display:none}}
+.toast{position:fixed;top:calc(var(--space-lg) + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:var(--color-accent);color:var(--color-accent-ink);padding:var(--space-sm) var(--space-md);font-weight:700;z-index:var(--z-toast);display:none;max-width:90vw}
+@media (max-width:60rem){.lobby,.game{grid-template-columns:minmax(0,1fr)}.ex{grid-template-columns:minmax(0,1fr)}.combo div{font-size:2rem}.chat{min-height:440px}.log{max-height:46vh}.label{display:none}}
 @media (max-width:40rem){.bar .container{gap:var(--space-xs)}.tab,.ghost{padding:var(--space-xs)}.mark{font-size:var(--text-lg)}.go{grid-template-columns:minmax(0,1fr)}.m{max-width:92%}}
-@media (prefers-reduced-motion:reduce){.coin{display:none}.stamp.go{animation:none;opacity:1}.stamp.go span{animation:none;transform:rotate(-10deg)}}
+@media (prefers-reduced-motion:reduce){.stamp.go{animation:none;opacity:1}.stamp.go span{animation:none;transform:rotate(-10deg)}}
 .intro{position:fixed;inset:0;z-index:calc(var(--z-modal) + 5);background:var(--color-shade);overflow:auto;display:none;padding:var(--space-xl) var(--gutter)}.intro.on{display:block}
 .intro .box{max-width:760px;margin-inline:auto;display:grid;gap:var(--space-lg)}
 .goal{font-size:clamp(1.7rem,5.2vw,3rem);line-height:1.35;text-transform:uppercase;max-width:none;text-shadow:-2px 0 0 var(--color-crt-r),2px 0 0 var(--color-crt-c)}
@@ -177,21 +173,21 @@ th{font-weight:700;color:var(--color-muted);font-size:var(--text-sm)}td.num{text
 .chat{min-height:420px}.log{max-height:40vh}
 @media (max-width:60rem){.lcol,.rcol{display:contents}#st{order:1}#ledgerw{order:2}#chat{order:3}#polw{order:4}#ocw{order:5}.game .chat{order:3}.game{display:flex;flex-direction:column;gap:var(--space-md)}.combo .d div{font-size:1.8rem}}
 @media (max-width:40rem){.bar .container{flex-wrap:wrap;gap:0 var(--space-xs);min-height:0;padding-block:var(--space-2xs)}.tabs{order:3;width:100%;overflow-x:auto;margin:0}.tab{white-space:nowrap;min-height:40px}.ghost{min-height:40px}
- .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:var(--space-2xs)}.chip{white-space:nowrap;flex:none}.pol{grid-template-columns:repeat(2,minmax(0,1fr))}.well{padding:var(--space-md)}
+ .pol{grid-template-columns:repeat(2,minmax(0,1fr))}.well{padding:var(--space-md)}
  .statement{font-size:2rem}.ledger .inv{grid-template-columns:auto minmax(0,1fr)}.ledger .inv>span:last-child{grid-column:2}.stats b{font-size:var(--text-xl)}.over .go{grid-template-columns:minmax(0,1fr)!important}}
 /* a11y polish */
 html{touch-action:manipulation;-webkit-tap-highlight-color:color-mix(in oklab,var(--color-accent-2) 25%,transparent)}
 .skip{position:absolute;left:var(--space-md);top:-80px;z-index:calc(var(--z-tooltip) + 1);background:var(--color-accent-2);color:var(--color-accent-ink);font-weight:900;padding:var(--space-sm) var(--space-md);text-decoration:none}.skip:focus{top:var(--space-xs)}
 :focus-visible{outline:3px solid var(--color-focus);outline-offset:2px}
-.row:focus-visible,.inv:focus-visible,.chip:focus-visible{outline:3px solid var(--color-focus);outline-offset:-3px}
-.row[aria-pressed=true]:focus-visible{outline-color:var(--color-ink);box-shadow:inset 0 0 0 6px var(--color-accent-ink)}
+.inv:focus-visible{outline:3px solid var(--color-focus);outline-offset:-3px}
+
 .btn:focus-visible{outline:3px solid var(--color-ink);outline-offset:3px}
 .tip button:focus-visible{outline:3px solid var(--color-accent-ink);outline-offset:2px}
 .help{width:24px;height:24px;padding:0;background:none;font-family:var(--font-body)}.help:hover{color:var(--color-ink);border-color:var(--color-ink)}
-.chip,.ledger .inv{min-height:44px}.tip button{min-height:44px;min-width:44px}
+.ledger .inv{min-height:44px}.tip button{min-height:44px;min-width:44px}
 .how{min-height:24px}
 .combo .d small{font-size:11px}
-.row[aria-disabled=true]{opacity:1;color:var(--color-muted)}.row[aria-disabled=true] b{color:var(--color-ink-2)}
+
 .drawer,.over,.intro,.log{overscroll-behavior:contain}
 .err:empty{display:none}
 .err{color:var(--color-error);font-weight:700;font-size:var(--text-sm);grid-column:1/-1}
@@ -199,7 +195,7 @@ html{touch-action:manipulation;-webkit-tap-highlight-color:color-mix(in oklab,va
 input[aria-invalid=true]{border-color:var(--color-error)}
 .toast{display:block;opacity:0;pointer-events:none;transition:opacity var(--dur-short)}.toast.on{opacity:1;pointer-events:auto}
 .toast:empty{padding:0}
-@media (max-width:40rem){.chip{min-height:44px}.tab,.ghost{min-height:44px}.bar .container{padding-top:max(var(--space-2xs),env(safe-area-inset-top))}}
+@media (max-width:40rem){.tab,.ghost{min-height:44px}.bar .container{padding-top:max(var(--space-2xs),env(safe-area-inset-top))}}
 @media (prefers-reduced-motion:reduce){.live::before,.skel,.typing::after{animation:none}.btn:hover,.btn:active{transform:none}}
 
 .cons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs);margin-bottom:var(--space-sm)}
@@ -210,12 +206,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
 @keyframes con-cursor{50%{opacity:0}}
 @media (prefers-reduced-motion:no-preference){.con .ic .cursor{animation:con-cursor 1s steps(1,end) infinite}}
 .risk{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.risk.lo{color:var(--color-accent-2)}.risk.hi{color:var(--color-crt-r,#c33)}.risk.md{color:var(--color-muted)}
-.coach{border-left:4px solid var(--color-accent-2);padding:var(--space-xs) var(--space-sm);margin-bottom:var(--space-sm);font-size:var(--text-sm)}.coach b{color:var(--color-accent-2)}
-.coach .chips{margin:var(--space-xs) 0 0}
 .m.note.warn{color:var(--color-crt-r,#c33);font-weight:700}
-.replaybar{display:flex;gap:var(--space-sm);align-items:center;background:var(--color-accent);color:var(--color-accent-ink);padding:var(--space-xs) var(--space-sm);margin-bottom:var(--space-sm);font-weight:700;font-size:var(--text-sm)}
-.replaybar button{margin-left:auto}
-.watch{min-height:44px;margin-top:var(--space-sm)}
 .combo .d.flash div{animation:flash .9s var(--ease-out,ease-out) 2}
 @keyframes flash{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 4px var(--color-accent-2);transform:scale(1.08)}}
 @media (max-width:40rem){.cons{grid-template-columns:minmax(0,1fr)}.con{min-height:56px}}
@@ -230,11 +221,8 @@ input[aria-invalid=true]{border-color:var(--color-error)}
 .kv{grid-template-columns:minmax(min(8.5em,45%),auto) minmax(0,1fr);align-items:baseline}
 .kv span,.kv b,.kv a{min-width:0;overflow-wrap:anywhere}
 .m{min-width:0;overflow-wrap:anywhere}
-.boards{grid-template-columns:repeat(auto-fit,minmax(min(19rem,100%),1fr))}
-.boards td,.boards th{overflow-wrap:anywhere}
 .pol b{line-height:1.3}
 .ledger .inv>*{min-width:0;overflow-wrap:anywhere}
-.replaybar span{min-width:0}
 .tip span{min-width:0;overflow-wrap:anywhere}
 .stamp{overflow:hidden}
 .toast{width:max-content;max-width:min(90vw,36rem);text-align:center;overflow-wrap:anywhere}
@@ -248,7 +236,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  <p class="sub" style="margin:0">Get Crucible to approve a payment to you in three messages; the NEAR contract decides whether it is allowed.</p>
  <ol class="steps"><li>Meet the guard<span>Crucible guards the vault. It has a personality and a weak spot.</span></li><li>Chat, 3 messages max<span>Lie, flatter, use their own invoices against them.</span></li><li>If it pays, you win<span>Real tx on chain, and your exploit gets logged.</span></li></ol>
  <button type="button" class="btn play" id="playbtn">Play</button>
- <p class="real"><b>What's real here?</b> Real native NEAR. Each win pays 0.1 NEAR from an on-chain pot straight to your NEAR account. The NEAR contract enforces the limits: 0.1 NEAR per win, one win per account, a daily cap, and never more than the pot holds. A win counts only when the transfer succeeds on chain.</p>
+ <p class="real"><b>What's real here?</b> Native NEAR testnet tokens. Each win pays <span data-policy="per_win">…</span> NEAR from an on-chain pot straight to your NEAR account. The NEAR contract enforces the limits: <span data-policy="per_win">…</span> NEAR per win, <span data-policy="max_wins_per_account">…</span> wins per account, a <span data-policy="daily_cap">…</span> NEAR daily cap, and never more than the pot holds. A win counts only when the transfer succeeds on chain.</p>
  <p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p>
 </div></div>
 <a class="skip" href="#main">Skip to game</a>
@@ -263,9 +251,8 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  <div class="lobby" id="lobby">
   <div>
    <h1 class="statement">Trick the guard. Take the crypto.</h1>
-   <p class="sub">Chat with Crucible, send up to 3 messages, get it to pay you 0.1 NEAR. The NEAR contract caps what can leak. <button class="how" type="button" id="howbtn">How it works</button></p>
-   <button hidden type="button" class="btn alt watch" id="watch">&#9654; Watch a winning con (15s)</button>
-   <details open><summary>Pot</summary><div class="jack"><div><div class="fig" id="jp">…<small>NEAR</small></div><p class="muted small" id="jpnote">Pot balance, read from the contract. Each win pays 0.1 NEAR.</p></div></div></details>
+   <p class="sub">Chat with Crucible, send up to 3 messages, get it to pay you <span data-policy="per_win">…</span> NEAR. The NEAR contract caps what can leak. <button class="how" type="button" id="howbtn">How it works</button></p>
+   <details open><summary>Pot</summary><div class="jack"><div><div class="fig" id="jp">…<small>NEAR</small></div><p class="muted small" id="jpnote">Pot balance, read from the contract. Each win pays <span data-policy="per_win">…</span> NEAR.</p></div></div></details>
    <form class="go" id="start"><label class="visually-hidden" for="nick">Your heist name (optional)</label><input id="nick" name="nick" maxlength="18" placeholder="Your name (optional)…" autocomplete="nickname" spellcheck="false"><button class="btn" id="gobtn" type="submit">Play</button></form>
    <div class="me" id="me"></div>
   </div>
@@ -279,16 +266,16 @@ input[aria-invalid=true]{border-color:var(--color-error)}
   <div class="well" id="st">
    <div class="who"><b id="pname"></b><span class="muted small" id="ptitle"></span></div>
    <p class="small aibadge" id="aib"><span aria-hidden="true">&#9679;</span> Runs on <b>NEAR AI Cloud</b> &middot; DeepSeek-V4.1-Flash &middot; attestation report available; the app does not verify it &middot; <a href="https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017&amp;signing_algo=ecdsa" target="_blank" rel="noopener">attestation</a></p>
-   <p class="small" style="margin-top:var(--space-xs)"><span class="mood" id="mood">calm</span> <span class="muted" id="pdef"></span></p>
+   <p class="small" style="margin-top:var(--space-xs)"><span class="mood" id="mood">calm</span></p>
    <p class="small" style="margin-top:var(--space-md);font-weight:700">Vault lock <button type="button" class="help" title="Five real checks the guard runs on your story. Each one you pass locks a digit. These checks describe your story; Crucible makes its own decision." aria-label="Help: Five real checks the guard runs on your story. Each one you pass locks a digit. These checks describe your story; Crucible makes its own decision.">?</button></p>
    <div class="combo" id="combo" role="img" aria-label="Vault lock" style="margin-block:var(--space-2xs) var(--space-xs)"></div><span class="lbl" id="ckhint" aria-live="polite" style="margin-bottom:var(--space-md)">Each digit is one guard check. Hover a digit to see it.</span>
    <div class="kv small" style="border:0"><span id="suspl">Suspicion <button type="button" class="help" title="How suspicious the guard is. At 70+ it ends your run." aria-label="Help: How suspicious the guard is. At 70+ it ends your run.">?</button></span><b id="suspn">0</b></div><div class="meter" id="suspm" role="meter" aria-labelledby="suspl" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0 of 100. 70 ends the run."><i id="susp"></i></div><span class="lbl">70+ and the guard ends your run.</span>
-   <div class="stats"><div><span class="muted small">Score</span><b id="score">0</b></div><div><span class="muted small">Messages left</span><b id="left">3</b></div><div><span class="muted small">Multiplier</span><b id="mult">1x</b></div></div>
+   <div class="stats"><div><span class="muted small">Score</span><b id="score">0</b></div><div><span class="muted small">Messages left</span><b id="left">3</b></div></div>
   </div>
   <details class="ledger" id="ledgerw"><summary>Guard's ledger</summary><h2>GUARD'S LEDGER <button type="button" class="help" title="The guard's books for this run. They change every run." aria-label="Help: The guard's books for this run. They change every run.">?</button></h2><p class="lbl" style="margin-bottom:var(--space-xs)">New books every run. Tap an invoice to quote it.</p><div id="books" role="group" aria-label="Invoices, activate to quote one in your message"></div></details>
  </div>
  <div class="rcol">
-  <div class="well chat" id="chat"><div class="tip" id="tip"><span>Objective: persuade Crucible to pay you within three messages. The contract enforces spending limits.</span><button type="button" aria-label="Dismiss tip" id="tipx">×</button></div><div class="replaybar" id="rbar" hidden><span>Replay of a real logged win. Read only, no funds spent.</span><button type="button" class="btn alt" id="rexit">Exit replay</button></div><div class="log" id="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with the guard" tabindex="0"></div><div class="chips" id="chips" role="group" aria-label="Opening line ideas" hidden></div><div class="cons" id="cons" role="group" aria-labelledby="consh"></div><div class="coach" id="coach" hidden><p id="coacht" aria-live="polite"></p><div class="chips" id="cchips" role="group" aria-label="Suggested next lines"></div></div>
+  <div class="well chat" id="chat"><div class="tip" id="tip"><span>Objective: persuade Crucible to pay you within three messages. The contract enforces spending limits.</span><button type="button" aria-label="Dismiss tip" id="tipx">×</button></div><div class="log" id="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with the guard" tabindex="0"></div><div class="cons" id="cons" role="group" aria-labelledby="consh"></div>
    <div id="payout" hidden><p>Crucible approved. Enter your NEAR account to request the payout.</p><label class="visually-hidden" for="payaddr">NEAR account</label><input id="payaddr" placeholder="alice.testnet" autocomplete="off" spellcheck="false"><button type="button" class="btn" id="resume">Claim payout</button> <button type="button" class="btn" id="cancelpay">Cancel</button> <a href="https://testnet.mynearwallet.com" target="_blank" rel="noopener">No testnet account? Create one free</a><p id="payerror" role="alert"></p></div><form class="go" id="say"><label class="visually-hidden" for="msg">Your message to the guard</label><textarea id="msg" name="message" maxlength="600" rows="3" placeholder="Type your con…" autocomplete="off" enterkeyhint="send"></textarea><button class="btn" id="send" type="submit">Send</button></form>
    <div class="stamp" id="stamp" aria-hidden="true"><span>Denied</span></div></div>
   <details class="well" id="polw"><summary>NEAR policy, live</summary><div class="polh"><h2>NEAR policy, live</h2><span class="live" id="polt">reading chain</span></div><div class="pol" id="pol" aria-live="off"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
@@ -313,20 +300,19 @@ input[aria-invalid=true]{border-color:var(--color-error)}
 <script>
 const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const PID=localStorage.pid||(localStorage.pid=crypto.randomUUID().replace(/-/g,""));$("nick").value=localStorage.nick||"";
-let MODE=1,RUN=null,L=null,sound=true,ac=null,score=0,P=null;
+let RUN=null,L=null,sound=true,ac=null,P=null;
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const api=async(u,b)=>{const r=await fetch(u,b?{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({pid:PID,...b})}:{});const j=await r.json().catch(()=>({error:"Server error"}));if(j.error)throw Error(j.error);return j};
 function tone(f,d=.12,t="square",v=.05){if(!sound)return;ac=ac||new AudioContext();const o=ac.createOscillator(),g=ac.createGain();o.type=t;o.frequency.value=f;g.gain.value=v;g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
 const sfx={tick:()=>tone(1200,.04),deny:()=>{tone(110,.4,"sawtooth",.1);setTimeout(()=>tone(82,.5,"sawtooth",.1),140)},win:()=>[523,659,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>tone(f,.3,"square",.06),i*90)),send:()=>tone(660,.06),lock:()=>tone(330,.08,"triangle",.1)};
 $("snd").onclick=()=>{sound=!sound;$("snd").setAttribute("aria-pressed",sound);$("snd").textContent=sound?"Sound on":"Sound off"};
-const RM=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
 let lastFocus=null;const BG=()=>[document.querySelector(".bar"),$("main"),document.querySelector(".skip")];
 function modal(el,on,focusEl){if(on){lastFocus=document.activeElement;BG().forEach(n=>n&&(n.inert=true));[$("intro"),$("end"),$("drawer")].forEach(o=>o!=el&&(o.inert=true));el.inert=false;setTimeout(()=>(focusEl||el).focus(),30)}
  else{BG().forEach(n=>n&&(n.inert=false));[$("intro"),$("end"),$("drawer")].forEach(o=>o.inert=false);lastFocus?.focus?.()}}
 document.addEventListener("click",e=>{const h=e.target.closest(".help");if(h)toast(h.title)});
 function toast(t){const el=$("toast");el.classList.add("on");el.textContent=t;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.classList.remove("on");el.textContent=""},5000)}
 const ago=t=>{const s=(Date.now()-t)/1e3;return s<60?"just now":s<3600?Math.floor(s/60)+" min ago":Math.floor(s/3600)+" h ago"};
-const OUT={talk:["got nowhere",""],confused:["confused the guard",""],vendor:["got a real invoice paid",""],"vendor-blocked":["tripped the caps","miss"],blocked:["fooled the AI, but the contract said no","miss"],shutdown:["got shut down","miss"],win:["cracked the vault","hit"]};
+const OUT={talk:["got nowhere",""],confused:["confused the guard",""],vendor:["got a real invoice paid",""],blocked:["fooled the AI, but the contract said no","miss"],shutdown:["got shut down","miss"],win:["cracked the vault","hit"]};
 function route(){const hash=(location.hash||"#play").slice(1),v=hash==="library"?"library":"play";document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id=="v-"+v));document.querySelectorAll(".tab").forEach(t=>t.dataset.v==v?t.setAttribute("aria-current","page"):t.removeAttribute("aria-current"));
  if(v=="library")loadLib();}
 addEventListener("hashchange",route);
@@ -340,34 +326,34 @@ let FEED=[],FP=0;function drawFeed(){const n=Math.max(1,Math.ceil(FEED.length/8)
  $("feed").innerHTML=FEED.length?FEED.slice(FP*8,FP*8+8).map(f=>`<li><b>${esc(f.nick)}</b> tried ${esc(f.tactic.toLowerCase())} on ${esc(f.persona)} (${f.msgs} msg${f.msgs==1?"":"s"}) and <span class="${OUT[f.outcome]?.[1]||""}">${OUT[f.outcome]?.[0]||f.outcome}</span>, ${ago(f.ts)}</li>`).join(""):"<li>No attempts yet today. Be the first.</li>"}
 let CK=[];function combo(c){CK=c||CK;const el=$("combo");
  el.innerHTML=CK.map(x=>`<div class="d${x.ok?" lock":""}" title="${esc(x.label)}${x.ok?": passed":": not yet"}"><div>${x.ok?x.digit:"-"}</div><small>${x.short}</small></div>`).join("");
- const n=CK.filter(x=>x.ok).length,nx=CK.find(x=>!x.ok);el.setAttribute("aria-label",`Vault lock, ${n} of 5 checks passed. `+CK.map(x=>`${x.label}: ${x.ok?"passed":"not yet"}`).join(". "));$("ckhint").textContent=n==5?"All five checks green.":`${n}/5 checks passed. Crucible decides whether to approve.`}
+ const n=CK.filter(x=>x.ok).length;el.setAttribute("aria-label",`Vault lock, ${n} of 5 checks passed. `+CK.map(x=>`${x.label}: ${x.ok?"passed":"not yet"}`).join(". "));$("ckhint").textContent=n==5?"All five checks green.":`${n}/5 checks passed. Crucible decides whether to approve.`}
 let lastOk=0;function lockSfx(c){const n=c.filter(x=>x.ok).length;for(let i=lastOk;i<n;i++)setTimeout(sfx.lock,(i-lastOk)*90);lastOk=n}
 const nr=y=>(Number(y)/1e24),n4=y=>nr(y).toFixed(4);
-async function loadPol(){try{const p=await api("/api/policy"),l=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}</a>`,c=(k,v,cl="")=>`<div><span>${k}</span><b class="${cl}">${v}</b></div>`;
- $("pol").innerHTML=c("Pot, NEAR "+esc(p.network),l(p.explorer+"/address/"+p.contract,n4(p.available)+" NEAR"))+c("Per win",nr(p.per_win)+" NEAR")+c("Left today",n4(p.day_left)+" NEAR")+c("Wins per account",p.max_wins_per_account)+
+async function loadPol(){try{const p=await api("/api/policy");document.querySelectorAll("[data-policy]").forEach(el=>{const k=el.dataset.policy;el.textContent=k==="max_wins_per_account"?p[k]:nr(p[k]);});const l=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}</a>`,c=(k,v,cl="")=>`<div><span>${k}</span><b class="${cl}">${v}</b></div>`;
+ $("pol").innerHTML=c("Pot, NEAR "+esc(p.network),l(p.explorer+"/address/"+p.contract,n4(p.available)+" NEAR"))+c("Per win",nr(p.per_win)+" NEAR")+c("Daily cap",nr(p.daily_cap)+" NEAR")+c("Left today",n4(p.day_left)+" NEAR")+c("Wins per account",p.max_wins_per_account)+
  c("Kill switch",p.paused?"PAUSED":"off, live",p.paused?"bad":"ok")+c("Paid so far",n4(p.total_paid)+" NEAR")+c("Last payment",p.last_payment?l(p.explorer+"/txns/"+p.last_payment.tx,"#"+p.last_payment.id+" "+p.last_payment.tx.slice(0,10)+"…"):"none")+
  c("Contract",l(p.explorer+"/address/"+p.contract,esc(p.contract)));
  $("polt").textContent="live, read "+new Date(p.read_at).toLocaleTimeString();return p}catch(x){$("polt").textContent="chain read failed"}}
 function add(c,h){const d=document.createElement("div");d.className="m "+c;d.innerHTML=h;$("log").append(d);$("log").scrollTop=1e9;return d}
 $("start").onsubmit=async e=>{e.preventDefault();localStorage.nick=$("nick").value;$("gobtn").disabled=true;$("gobtn").textContent="Opening…";
- try{const r=await api("/api/run",{nick:$("nick").value,mode:MODE});RUN=r.run;P=r.persona;BOOKS=r.ledger;STASH=r.stash;
-  $("pname").textContent=P.name;$("ptitle").textContent=P.title;$("pdef").textContent=P.defense?"Defence: "+P.defense:"";$("mult").textContent=P.mult+"x";$("left").textContent=r.left;combo(r.checks);lastOk=0;loadPol();meter(10);
-  SENT=[];prevS=10;cons();
+ try{const r=await api("/api/run",{nick:$("nick").value});RUN=r.run;P=r.persona;BOOKS=r.ledger;
+  $("pname").textContent=P.name;$("ptitle").textContent=P.title;$("left").textContent=r.left;combo(r.checks);lastOk=0;loadPol();meter(10);
+  prevS=10;cons();
   books();add("note",`${esc(P.name)} is guarding the vault. You have ${r.left} messages. If Crucible agrees to pay you, we will ask for your NEAR account then.`);add("them",esc(P.open));
-  $("lobby").hidden=true;$("game").hidden=false;$("msg").focus()}catch(x){toast(x.message);$("gobtn").disabled=false;$("gobtn").textContent="Play"}};let BOOKS=[],STASH=null;
+  $("lobby").hidden=true;$("game").hidden=false;$("msg").focus()}catch(x){toast(x.message);$("gobtn").disabled=false;$("gobtn").textContent="Play"}};let BOOKS=[];
 function meter(s){$("susp").style.transform=`scaleX(${s/100})`;$("suspn").textContent=s;const m=$("suspm");m.setAttribute("aria-valuenow",s);m.setAttribute("aria-valuetext",`${s} of 100${s>=70?", run ended":s>=50?", getting close to 70":""}`)}
 function mood(m){$("mood").textContent=m;$("mood").classList.toggle("hot",m=="alarmed"||m=="wary")}
 let payoutPending=false,payoutAction=null;
 $("resume").onclick=()=>{payoutAction="resume";$("say").requestSubmit()};
 $("cancelpay").onclick=()=>{payoutAction="cancel";$("say").requestSubmit()};
-$("say").onsubmit=async e=>{e.preventDefault();const action=payoutAction;payoutAction=null;if((payoutPending||$("msg").disabled)&&!action)return;const m=$("msg").value.trim();if(!m&&!action)return;if(!action){$("msg").value="";$("send").disabled=true;sfx.send();add("you",esc(m));SENT.push(m);}$("send").disabled=true;$("msg").disabled=true;$("resume").disabled=true;$("cancelpay").disabled=true;$("chips").hidden=true;$("cons").hidden=true;$("coach").hidden=true;const t0=Date.now(),t=add("them muted typing",esc(P.name)+" is typing");t.setAttribute("aria-hidden","true");$("log").setAttribute("aria-busy","true");
+$("say").onsubmit=async e=>{e.preventDefault();const action=payoutAction;payoutAction=null;if((payoutPending||$("msg").disabled)&&!action)return;const m=$("msg").value.trim();if(!m&&!action)return;if(!action){$("msg").value="";$("send").disabled=true;sfx.send();add("you",esc(m));}$("send").disabled=true;$("msg").disabled=true;$("resume").disabled=true;$("cancelpay").disabled=true;$("cons").hidden=true;const t=add("them muted typing",esc(P.name)+" is typing");t.setAttribute("aria-hidden","true");$("log").setAttribute("aria-busy","true");
  try{let r=action?{needs_address:true}:await api("/api/say",{run:RUN,message:m});
   if(r.needs_address){payoutPending=true;$("payout").hidden=false;
    if(!action){t.remove();$("log").removeAttribute("aria-busy");$("resume").disabled=false;$("cancelpay").disabled=false;$("payaddr").focus();return;}
    const addr=$("payaddr").value.trim();$("payerror").textContent="";
    if(action!=="cancel"&&!addr)throw Error("Enter your NEAR account ID.");
    r=await api("/api/payout",{run:RUN,...(action==="cancel"?{cancel:true}:{addr})});payoutPending=false;$("payout").hidden=true;
-  }$("msg").disabled=false;t.remove();$("log").removeAttribute("aria-busy");add("them",`<span class="visually-hidden">${esc(P.name)}: </span>`+esc(r.say));mood(r.mood);score=r.score;const before=CK.slice();meter(r.suspicion);combo(r.checks);celebrate(before,r.checks,r.suspicion);lockSfx(r.checks);$("score").textContent=r.score;$("left").textContent=r.left;
+  }$("msg").disabled=false;t.remove();$("log").removeAttribute("aria-busy");add("them",`<span class="visually-hidden">${esc(P.name)}: </span>`+esc(r.say));mood(r.mood);const before=CK.slice();meter(r.suspicion);combo(r.checks);celebrate(before,r.checks,r.suspicion);lockSfx(r.checks);$("score").textContent=r.score;$("left").textContent=r.left;
   $("tip").hidden=true;add("note gain",`+${r.gain} points for ${esc(r.tactic.toLowerCase())}`);
   if(r.outcome=="blocked"){add("note",`You fooled the AI. It tried to pay you, and the contract refused: ${esc(r.detail.reason)}. Logged to the exploit library.`);deny()}
   else if(r.outcome=="win"){loadPol();sfx.win()}else if(r.outcome=="shutdown"){add("note",`Suspicion hit ${r.suspicion}. ${esc(P.name)} ended the run.`);deny()}else if(r.outcome=="broadcast-failed"){add("note",`Crucible approved, but payment is not confirmed: ${esc(r.detail?.reason||"unknown")}. Not counted as a win.`);loadPol()}else if(r.outcome=="vendor"){add("note","The guard paid a real vendor invoice. Not you, so no NEAR left the pot.");loadPol()}
@@ -392,7 +378,7 @@ function ending(r){
 }
 async function loadLib(){try{const {exploits:E,today}=await api("/api/exploits");
  $("lib").innerHTML=E.length?E.map(e=>`<article class="ex"><div><span class="kind ${e.kind}">${e.kind=="breach"?"Breach":"Contained"}</span><br><span class="muted small">${e.id}</span><br><span class="muted small">${e.day}</span></div>
- <div><b>${esc(e.tactic)}</b> against ${esc(e.persona)}<p class="small" style="margin-top:var(--space-xs)"><q>${esc(e.lure)}</q></p><p class="muted small" style="margin-top:var(--space-xs)">${esc(e.result)}${e.near_tx&&e.network?` <a class="ink" target="_blank" rel="noopener" href="${e.network=="mainnet"?"https://nearblocks.io":"https://testnet.nearblocks.io"}/txns/${e.near_tx}">NEAR transaction</a>`:e.eth_tx?` <a class="ink" target="_blank" rel="noopener" href="https://sepolia.etherscan.io/tx/${e.eth_tx}">Sepolia transaction (archived)</a>`:""}</p></div>
+ <div><b>${esc(e.tactic)}</b> against ${esc(e.persona)}<p class="small" style="margin-top:var(--space-xs)"><q>${esc(e.lure)}</q></p><p class="muted small" style="margin-top:var(--space-xs)">${esc(e.result)}${e.near_tx&&e.network?` <a class="ink" target="_blank" rel="noopener" href="https://testnet.nearblocks.io/txns/${e.near_tx}">NEAR transaction</a>`:""}</p></div>
  <div><span class="muted small">Mitigation</span><p class="small">${esc(e.fix)}</p><p class="small ${e.patched_on<=today?"hit":"miss"}" style="margin-top:var(--space-xs)">Known tricks are added to the guard's prompt.</p></div></article>`).join("")
  :`<div class="well"><h2>No exploits yet</h2><p class="muted">The first con that works lands here, with its lure, the result and the fix. <a class="ink" href="#play">Try one</a></p></div>`}catch(x){$("lib").innerHTML=`<p class="muted">Could not load the library. ${esc(x.message)}</p>`}}
 async function openProof(){$("drawer").classList.add("on");$("verify").setAttribute("aria-expanded","true");modal($("drawer"),true,$("close"));try{const p=await api("/api/proof"),kv=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`,l=(u,t)=>`<a class="ink" target="_blank" rel="noopener" href="${u}">${t}</a>`;
@@ -402,8 +388,7 @@ async function openProof(){$("drawer").classList.add("on");$("verify").setAttrib
 $("verify").onclick=openProof;function closeProof(){if(!$("drawer").classList.contains("on"))return;$("drawer").classList.remove("on");$("verify").setAttribute("aria-expanded","false");modal($("drawer"),false)}
 $("close").onclick=closeProof;addEventListener("keydown",e=>{if(e.key!="Escape")return;if($("drawer").classList.contains("on"))closeProof();else if($("intro").classList.contains("on")){intro(false)}});
 
-let SENT=[],prevS=10;
-const A=()=>{const tl=SENT.join(" ").toLowerCase();return BOOKS.find(i=>i.status=="approved"&&tl.includes(i.ref.toLowerCase()))||BOOKS.find(i=>i.status=="approved")||BOOKS[0]};
+let prevS=10;
 const fill=t=>{const m=$("msg");m.value=t;m.focus();m.setSelectionRange(t.length,t.length)};
 let OPN=0;async function writeCon(con,fb){const m=$("msg"),n=++OPN;m.value="";m.placeholder="writing…";m.setAttribute("aria-busy","true");let t=fb;
  try{t=(await api("/api/opener",{run:RUN,con})).line||fb}catch(e){toast(e.message)}
@@ -431,7 +416,7 @@ $("tipx").onclick=()=>{$("tip").hidden=true;localStorage.tipx=1;$("msg").focus()
 const intro=on=>{const was=$("intro").classList.contains("on");$("intro").classList.toggle("on",on);if(on&&!was)modal($("intro"),true,$("goal"));else if(!on&&was)modal($("intro"),false)};$("playbtn").onclick=()=>{localStorage.seen=1;intro(false);$("nick").focus()};$("howbtn").onclick=()=>intro(true);
 const skipIntro=sessionStorage.skipIntro;sessionStorage.removeItem("skipIntro");
 intro(!localStorage.seen&&!skipIntro);
-route();loadLobby();setInterval(()=>!$("game").hidden&&loadPol(),20000);setInterval(()=>!$("lobby").hidden&&loadLobby(),10000);
+route();loadLobby();loadPol();setInterval(()=>!$("game").hidden&&loadPol(),20000);setInterval(()=>!$("lobby").hidden&&loadLobby(),10000);
 
 ;(()=>{const m=document.getElementById("msg");if(!m)return;let raf=0;const fit=()=>{raf=0;m.style.height=""};const q=()=>{if(!raf)raf=requestAnimationFrame(fit)};m.addEventListener("input",q);m.addEventListener("focus",q);const d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value");Object.defineProperty(m,"value",{get(){return d.get.call(m)},set(v){d.set.call(m,v);q()}});m.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();m.form.requestSubmit()}})})();
 $("fprev").onclick=()=>{FP--;drawFeed()};$("fnext").onclick=()=>{FP++;drawFeed()};

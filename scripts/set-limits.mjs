@@ -1,11 +1,8 @@
-// Owner-only cap change on the testnet game contract. Usage:
-//   node set-limits.mjs dev    -> daily tx count effectively off (1,000,000/day), per_day = total = 0.1 ETH, per_tx 0.01 ETH
-//   node set-limits.mjs prod   -> restore 5 tx/day, per_day 0.03 ETH, total 0.1 ETH, per_tx 0.01 ETH
-import { loadAccount, view, GAME, G } from "./lib.mjs";
-const E = n => (BigInt(Math.round(n * 1e6)) * 10n ** 12n).toString();
-const P = { dev: { per_tx: E(0.01), per_day: E(0.1), total: E(0.1), max_tx_per_day: 1_000_000 },
-            prod: { per_tx: E(0.01), per_day: E(0.03), total: E(0.1), max_tx_per_day: 5 } }[process.argv[2]];
-if (!P) throw new Error("usage: node set-limits.mjs dev|prod");
-const a = await loadAccount();
-const r = await a.functionCall({ contractId: GAME, methodName: "set_limits", args: { chain: "eth", caps: P }, gas: G });
-console.log("set_limits tx", r.transaction.hash, JSON.stringify((await view(a, "get_chain", { chain: "eth" }))[1]));
+// Apply the testnet pot limits using the owner key.
+import { account, OWNER_KEY, POT, G } from "./near-net.mjs";
+import { utils } from "near-api-js";
+const N = s => utils.format.parseNearAmount(s);
+const owner = await account(OWNER_KEY);
+const r = await owner.functionCall({ contractId: POT, methodName: "set_limits", gas: G,
+  args: { limits: { per_win: N("0.5"), daily_cap: N("5"), max_wins_per_account: 3, reserve: N("0.05") } } });
+console.log("set_limits", r.transaction.hash);

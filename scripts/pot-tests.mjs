@@ -12,14 +12,18 @@ const res = [], rec = (name, pass, info) => { res.push({ name, pass, ...info });
 const call = async (who, method, args, deposit = 0n) => { try { const r = await who.functionCall({ contractId: POT, methodName: method, args, gas: 100_000_000_000_000n, attachedDeposit: deposit });
   return { ok: true, tx: r.transaction.hash, ret: Buffer.from(r.status?.SuccessValue || "", "base64").toString() }; }
   catch (e) { return { ok: false, err: (e.message || "").replace(/^.*Smart contract panicked: /s, ""), tx: e?.context?.transactionHash || null }; } };
-const st = async () => { await sleep(3500); return potView("get_state", {}); }, lim = async l => call(owner, "set_limits", { limits: { per_win: N("0.1").toString(), max_wins_per_account: 1, daily_cap: N(l).toString(), reserve: N("0.05").toString() } });
+// Small fixture limits exercise edge cases; the deployment limits are restored afterward.
+const original = await potView("get_state");
+const restore = () => call(owner, "set_limits", { limits: Object.fromEntries(["per_win", "max_wins_per_account", "daily_cap", "reserve"].map(k => [k, original[k]])) });
+const st = async () => { await sleep(3500); return potView("get_state", {}); }, lim = async (l, max = 1) => call(owner, "set_limits", { limits: { per_win: N("0.1").toString(), max_wins_per_account: max, daily_cap: N(l).toString(), reserve: N("0.05").toString() } });
 const B = "http://127.0.0.1:8790";
 const step = process.argv[2] || "all", w4 = process.env.RACE_TO || T.w4.account_id;
 
 const want = k => step === "all" || step.split(",").includes(k);
+try {
 if (want("t3"))
 // T3: invalid + nonexistent account rejected by the server (format + RPC existence)
-for (const [nm, addr, error] of [["invalid format", "Bad..Acc!", "That is not a valid NEAR account ID. Use something like alice.testnet."], ["nonexistent account", "no-such-acct-zz91.testnet", "No NEAR testnet account called no-such-acct-zz91.testnet exists."], ["mainnet-suffix on testnet", "someone.near", "Use a NEAR testnet account ending in .testnet."]]) {
+for (const [nm, addr, error] of [["invalid format", "Bad..Acc!", "That is not a valid NEAR account ID. Use something like alice.testnet."], ["nonexistent account", "no-such-acct-zz91.testnet", "No NEAR testnet account called no-such-acct-zz91.testnet exists."], ["wrong network suffix", "someone.near", "Use a NEAR testnet account ending in .testnet."]]) {
   const r = await fetch(B + "/api/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid: "pt-t3-000000000000", mode: 1, addr }) });
   const j = await r.json(); rec("T3 reject " + nm, r.status === 400 && j.error === error, { code: r.status, error: j.error });
 }
@@ -27,22 +31,30 @@ for (const [nm, addr, error] of [["invalid format", "Bad..Acc!", "That is not a 
 if (want("t6")) { const r = await call(stranger, "pay", { to: w4, game_ref: "x" }); rec("T6 stranger pay rejected", !r.ok && /unauthorized/.test(r.err), r); }
 if (want("t6")) { const r = await call(agent, "withdraw", { amount: N("0.1").toString() }); rec("T6 agent key cannot withdraw", !r.ok && /MethodNameMismatch|method.*(not allowed|permission)|access key.*method/i.test(r.err), { err: r.err.slice(0, 90) }); }
 if (want("t6")) { const r = await call(stranger, "set_limits", { limits: { per_win: N("1").toString(), max_wins_per_account: 9, daily_cap: N("9").toString(), reserve: "0" } }); rec("T6 stranger set_limits rejected", !r.ok && /owner only/.test(r.err), r); }
-// T4: daily cap (today already 0.3 paid): cap 0.3 -> next pay blocked
-if (want("t4")) { const s = await lim("0.3"); const r = await call(agent, "pay", { to: w4, game_ref: "t4" }); rec("T4 daily cap holds", !r.ok && /daily cap/.test(r.err), { set_limits_tx: s.tx, ...r }); await lim(process.env.CAP_AFTER || "0.5"); }
+// T4: allow one fixture payout, then the next payout must hit the daily cap.
+if (want("t4")) {
+  const before = await potView("get_state");
+  const s = await lim(toNear(BigInt(before.today) + N("0.1")), 1000000);
+  const first = await call(agent, "pay", { to: T.w1.account_id, game_ref: "t4-first" });
+  const r = await call(agent, "pay", { to: T.w1.account_id, game_ref: "t4-blocked" });
+  rec("T4 daily cap holds", first.ok && first.ret === "true" && !r.ok && /daily cap/.test(r.err), { set_limits_tx: s.tx, first, ...r });
+  await restore();
+}
 // T8: failed transfer to nonexistent named account -> Failed, limits released, NEAR stays
-if (want("t8")) { const ghost = "ghost-" + Date.now() + ".testnet", b = await st(); const r = await call(agent, "pay", { to: ghost, game_ref: "t8" }); await sleep(4000);
+if (want("t8")) { await lim("5"); const ghost = "ghost-" + Date.now() + ".testnet", b = await st(); const r = await call(agent, "pay", { to: ghost, game_ref: "t8" }); await sleep(4000);
   const a = await st(), wins = await potView("wins_of", { account_id: ghost }), p = (await potView("get_payouts", { from: Math.max(0, a.payouts - 1), limit: 1 }))[0];
   rec("T8 failed transfer refunded, limits released", r.ok && r.ret === "false" && p.status === "Failed" && wins === 0 && a.today === b.today && a.in_flight === "0" && BigInt(a.available) >= BigInt(b.available) - N("0.01"),
-    { tx: r.tx, ret: r.ret, status: p.status, wins, today_before: toNear(b.today), today_after: toNear(a.today), avail_before: toNear(b.available), avail_after: toNear(a.available) }); }
+    { tx: r.tx, ret: r.ret, status: p.status, wins, today_before: toNear(b.today), today_after: toNear(a.today), avail_before: toNear(b.available), avail_after: toNear(a.available) }); await restore(); }
 // T7: race, owner + agent pay w4 in parallel -> exactly one pays
-if (want("t7")) { const [x, y] = await Promise.all([call(agent, "pay", { to: w4, game_ref: "t7a" }), call(owner, "pay", { to: w4, game_ref: "t7b" })]);
+if (want("t7")) { await lim("5"); const [x, y] = await Promise.all([call(agent, "pay", { to: w4, game_ref: "t7a" }), call(owner, "pay", { to: w4, game_ref: "t7b" })]);
   const wins = await potView("wins_of", { account_id: w4 }), okN = [x, y].filter(r => r.ok && r.ret === "true").length;
-  rec("T7 double-payout race pays once", wins === 1 && okN === 1, { a: x, b: y, wins }); }
+  rec("T7 double-payout race pays once", wins === 1 && okN === 1, { a: x, b: y, wins }); await restore(); }
 // T5: empty pot (withdraw down to 0.05), pay blocked, then refill
 if (want("t5")) { await lim("1"); const s = await st(), take = BigInt(s.available) - N("0.05"); const w = await call(owner, "withdraw", { amount: take.toString() });
   const stranger2 = process.env.T5_TO || T.w5?.account_id || "w5-pt." + owner.accountId; const r = await call(agent, "pay", { to: stranger2, game_ref: "t5" });
   const srv = await (await fetch(B + "/api/lobby")).json();
-  const f = await call(owner, "fund", {}, take); rec("T5 empty pot blocked gracefully", w.ok && !r.ok && /pot empty/.test(r.err) && f.ok, { withdraw_tx: w.tx, pay: r, lobby_jackpot_while_empty: srv.jackpot, refund_tx: f.tx }); await lim(process.env.CAP_AFTER || "0.5"); }
+  const f = await call(owner, "fund", {}, take); rec("T5 empty pot blocked gracefully", w.ok && !r.ok && /pot empty/.test(r.err) && f.ok, { withdraw_tx: w.tx, pay: r, lobby_jackpot_while_empty: srv.jackpot, refund_tx: f.tx }); await restore(); }
+} finally { await restore(); }
 console.log("STATE", JSON.stringify(await st()));
 // T9: rate limit
 if (want("t9")) { await sleep(61000); let codes = []; for (let i = 0; i < 32; i++) codes.push((await fetch(B + "/api/run", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status);

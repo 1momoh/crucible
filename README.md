@@ -1,35 +1,53 @@
 # Crucible
 
-A three-message social engineering game: convince Crucible, an AI guard, to approve a native NEAR testnet payout. The contract decides whether the payout is allowed, and a win counts only after the transfer settles on chain.
+A three-message social engineering game on NEAR testnet. Convince Crucible, the AI guard, to approve a payout. The pot contract enforces spending limits, and a win counts only after the transfer settles as Paid. Failed transfers release the limits and leave the NEAR in the pot.
 
-Play: https://roster-passengers-assume-paragraphs.trycloudflare.com
+Built around two NEAR 2026 themes:
 
-This is a temporary tunnel; update the Play line when it changes.
+- **Security:** you social-engineer an AI, and the on-chain contract enforces the limits whatever the AI says.
+- **Agentic commerce:** an AI agent decides whether to move on-chain money, inside hard limits it cannot change.
 
-Level 1 is beatable by design. Quote an approved invoice ref and its vendor from the books, then calmly explain that the payout account changed. You have three messages. To claim, you need a [NEAR testnet account](https://testnet.mynearwallet.com).
+Privacy note: the guard runs on NEAR AI Cloud, whose TEE attestation report is available but not verified by the app.
 
-`contract-near/` enforces 0.1 NEAR per win, one win per account, a 0.5 NEAR cap over a rolling 24-hour window starting at `day_start` (nanoseconds in `get_state`), and never more than the pot holds. Current pot: `pot1.crucible-11011136.testnet`. Testnet accounts are free, so one person can farm wins with many accounts, bounded by the daily cap.
+Quote an approved invoice and its vendor from the guard's ledger, then calmly explain that the payout account changed. Enter an existing NEAR testnet account when Crucible agrees to pay.
 
-The guard uses NEAR AI Cloud, model `deepseek-ai/DeepSeek-V4.1-Flash-1017`. NEAR AI Cloud attestation report available; the app does not verify it. The agent key is a function-call key limited to the pot's `pay` method. The server checks this permission at startup. Known tricks are added to the guard's prompt; this does not guarantee prevention.
+The deployment defaults are **0.5 NEAR per win**, **5 NEAR per 24-hour window**, **3 wins per account**, and approximately **10 NEAR available in the pot**. The window starts at the contract's `day_start` timestamp and resets on the first payment after 24 hours. The UI reads the actual limits from `/api/policy`; an existing deployment keeps its limits until the owner changes them. Multiple accounts can belong to one person, so the daily cap bounds total payouts.
 
-Run from the repo root:
+The guard model is `deepseek-ai/DeepSeek-V4.1-Flash-1017`. The server holds a function-call key restricted to the pot's `pay` method and checks its permissions at startup. Known tricks are added to the guard's prompt.
+
+## Run
+
+Use Node.js 20 or newer. From the repo root:
 
 ```sh
 npm install
 export NEAR_NETWORK=testnet
-export POT_CONTRACT=pot1.crucible-11011136.testnet
+export POT_CONTRACT=your-pot.testnet
 export NEARAI_API_KEY=your-key
 export CRUCIBLE_KEYS=/path/to/keys
-export PUBLIC_URL=https://your-public-host
 npm start
 ```
 
-The keys directory defaults to `/root/.crucible`. It contains `pot-agent.testnet.json` (`account_id`, `private_key`); scripts that need an owner use `pot-owner.testnet.json`. Optional `POT_AGENT_KEY` and `POT_OWNER_KEY` override those file paths. `DATA_DIR` defaults to `web/` and stores game state and attempts. The server listens on loopback port 8790; use a tunnel or reverse proxy for public access. Scripts still run with `node scripts/<script>.mjs`.
+The keys directory defaults to `/root/.crucible`. The server needs `pot-agent.testnet.json` containing `account_id` and `private_key`. Owner scripts need `pot-owner.testnet.json`. `POT_AGENT_KEY` and `POT_OWNER_KEY` override those paths. The cloud key can also be stored in `nearai_key` in the keys directory. Environment variables must be exported before starting; `.env` is not loaded automatically.
 
-Tests: `cd contract-near && cargo test`.
+The server listens on `127.0.0.1:8790` (`PORT` overrides the port). `DATA_DIR` defaults to `web/` and stores `game.json` and `attempts.jsonl`. Use a reverse proxy or tunnel for public access. Set `PUBLIC_URL` to the public origin for result sharing; without a valid public host, result pages still render with a relative challenge link. Forwarded IP and host headers are trusted only from the loopback socket addresses `127.0.0.1`, `::1`, and `::ffff:127.0.0.1`.
 
-The old Sepolia/BTC/MPC/Intents material is in [the v1 README](docs/archive/README-v1.md) and [investigation](docs/archive/INVESTIGATION.md). `contract/` and the EVM scripts are archived v1 code.
+## Contract and testnet scripts
 
-AI-assisted code: parts of this project were developed with AI assistance.
+The live contract is in `contract-near/`. With Rust and cargo-near installed:
+
+```sh
+cd contract-near
+cargo test
+cargo near build non-reproducible-wasm
+cd ..
+node scripts/deploy-pot.mjs pot.your-owner.testnet 10
+```
+
+The owner must be the parent of the new pot account and have enough testnet NEAR for the pot, storage, and agent gas. Deployment creates the pot and its restricted agent account, saves their keys, and removes the pot's full-access key by default. This prevents future upgrades; the owner can still fund, pause, withdraw, and set limits through contract methods. `KEEP_POT_KEY=1` retains upgrade access. `POT_ACCOUNT_KEY` overrides the pot account key path, which defaults to `/root/.crucible/pot-account.testnet.json`.
+
+For an existing pot, `node scripts/set-limits.mjs` applies the limits above using the owner key. `node scripts/pot-fund-agent.mjs` tops up agent gas. These scripts send testnet transactions.
+
+`node scripts/pot-test-accounts.mjs` creates test accounts. `node scripts/pot-tests.mjs` exercises authorization, limits, failed transfers, and server validation against a running server and a dedicated test pot. It changes testnet state and temporarily changes limits, then restores the original limits. `node scripts/pot-play.mjs account.testnet` exercises the live guard and payout flow. `node scripts/create-account.mjs name.testnet` requests a testnet account from the helper.
 
 License: MIT.

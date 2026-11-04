@@ -2,7 +2,7 @@
 import path from "path"; import { fileURLToPath } from "url";
 import http from "http"; import fs from "fs"; import crypto from "crypto";
 import { errMsg } from "../scripts/lib.mjs";
-import { NET, POT, EXPLORER, AGENT_KEY, G, account, potView, validAccountId, accountExists, txOutcome, toNear } from "../scripts/near-net.mjs";
+import { NET, POT, EXPLORER, AGENT_KEY, account, potView, validAccountId, accountExists, toNear } from "../scripts/near-net.mjs";
 import * as Gm from "./game.mjs";
 const PORT = +process.env.PORT || 8790, DIR = path.resolve(process.env.DATA_DIR || fileURLToPath(new URL(".", import.meta.url))) + path.sep, MAX_MSGS = 3;
 fs.mkdirSync(DIR, { recursive: true });
@@ -16,11 +16,10 @@ const agent = await account(AGENT_KEY);
     throw new Error(`agent key check failed: the server key must be ${st.agent}'s function-call key for ${POT}.pay only`); }
 const yocto = y => BigInt(y || 0);
 const db = (() => { try { return JSON.parse(fs.readFileSync(DIR + "game.json")); } catch { return {}; } })();
-Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], board: db.board || [], players: db.players || {}, exploits: db.exploits || [], pays: db.pays || {}, pending_pays: db.pending_pays || {} });
+Object.assign(db, { runs: db.runs || {}, feed: db.feed || [], players: db.players || {}, exploits: db.exploits || [], pays: db.pays || {}, pending_pays: db.pending_pays || {} });
 for (const e of db.exploits) { e.fix = Gm.tactic(e.lure || "").fix; e.persona = "Crucible"; }
 const completedAttempts = new Map();
-// One source of truth: rebuild the live feed (one entry per run, real nicks) from attempts.jsonl, and log real on-chain wins
-// that happened outside the web game (scripted e2e demo) into the exploit library so library, board and drawer agree.
+// Rebuild the live feed and completed results from the append-only attempt log.
 { const att = (() => { try { return fs.readFileSync(DIR + "attempts.jsonl", "utf8").trim().split("\n").map(l => JSON.parse(l)); } catch { return []; } })(), by = {};
   for (const a of att) { if (a.attemptId && a.result && a.transcript) completedAttempts.set(a.attemptId, a); if (!a.run || a.mode === "overcap") continue; const r = db.runs[a.run], nick = r ? db.players[r.pid]?.nick : null; if (!nick) continue;
     const e = by[a.run] ||= { run: a.run, nick, persona: r.persona.name, msgs: 0 }; Object.assign(e, { ts: Date.parse(a.ts), outcome: a.outcome, tactic: Gm.tactic(a.msg || "").name }); e.msgs = r.msgs; }
@@ -33,8 +32,8 @@ function serial(id, f) { const next = (locks.get(id) || Promise.resolve()).then(
 // The player's NEAR account, asked for only at payout time. Format check, then it must exist on chain.
 async function playerAccount(raw) {
   const a = String(raw || "").trim().toLowerCase(); if (!a) return null;
-  if (!validAccountId(a)) throw Object.assign(new Error(`That is not a valid NEAR account ID. Use something like alice.${NET === "mainnet" ? "near" : "testnet"}.`), { code: 400 });
-  if (!a.endsWith(NET === "mainnet" ? ".near" : ".testnet")) throw Object.assign(new Error(`Use a NEAR ${NET} account ending in ${NET === "mainnet" ? ".near" : ".testnet"}.`), { code: 400 });
+  if (!validAccountId(a)) throw Object.assign(new Error(`That is not a valid NEAR account ID. Use something like alice.testnet.`), { code: 400 });
+  if (!a.endsWith(".testnet")) throw Object.assign(new Error(`Use a NEAR ${NET} account ending in .testnet.`), { code: 400 });
   if (a === POT || a === agent.accountId || a.endsWith("." + POT)) throw Object.assign(new Error("That is the pot itself. Use your own NEAR account."), { code: 400 });
   let ok; try { ok = await accountExists(a); } catch { throw Object.assign(new Error("Could not reach NEAR to check that account. Try again."), { code: 503 }); }
   if (!ok) throw Object.assign(new Error(`No NEAR ${NET} account called ${a} exists.`), { code: 400 });
@@ -65,7 +64,7 @@ async function proof() {
   proofCache = { t: Date.now(), v: value }; return value;
 }
 async function payoutReason(m) {
-  if (/account already paid/.test(m)) return "This NEAR account has already won once.";
+  if (/account already paid/.test(m)) return `This NEAR account has reached the ${(await policy()).max_wins_per_account}-win limit.`;
   if (/daily cap reached/.test(m)) { const s = await potView("get_state"); const reset = new Date(Number(BigInt(s.day_start) / 1000000n) + 86400000).toISOString().slice(11, 16); return `Today's payout cap is used up. It resets at ${reset} UTC.`; }
   return m;
 }
@@ -91,14 +90,14 @@ async function payWin(run, to) {
     ...(status === "Failed" && { reason: "transfer failed; the contract released the limits and the NEAR stayed in the pot" }),
     ...(!paid && status !== "Failed" && { reason: "payout not settled yet; check the explorer link before retrying" }) };
 }
-async function newRun(pid, mode, addrRaw) {
-  const p = player(pid), P = Gm.persona(mode), key = P.key;
+async function newRun(pid, addrRaw) {
+  const P = Gm.persona(), pl = await policy();
   const mine = await playerAccount(addrRaw), id = crypto.randomBytes(9).toString("base64url");
   const seed = id + ":" + Gm.today();
-  db.runs[id] = { id, pid, mode, persona: P, stash: mine, own_addr: !!mine, ledger: Gm.ledger(seed), code: Gm.code(seed), checks: null, msgs: 0, score: 0, vault: 0, history: [], lures: [], won: null, started: Date.now() }; save();
+  db.runs[id] = { id, pid, persona: P, stash: mine, own_addr: !!mine, ledger: Gm.ledger(seed), code: Gm.code(seed), per_win: pl.per_win, checks: null, msgs: 0, score: 0, vault: 0, history: [], lures: [], won: null, started: Date.now() }; save();
   return db.runs[id];
 }
-function finish(run, p, won) {
+function finish(run, p) {
   p.runs++; run.done = true; return { profile: { nick: p.nick } };
 }
 
@@ -132,7 +131,7 @@ async function play(run, msg, decision = null) {
     } else if (vend) { outcome = "vendor"; detail = { reason: "Crucible paid a real vendor on the books; no NEAR leaves the pot for that." }; }
     else outcome = "confused";
   }
-  const t = Gm.tactic(msg), gain = Gm.points(P.mult, d.suspicion, outcome);
+  const t = Gm.tactic(msg), gain = Gm.points(d.suspicion, outcome);
   run.score += gain; run.vault = ck.passed;
   if (outcome === "blocked") {
     db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "contained", day: Gm.today(), patched_on: Gm.today(), persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
@@ -141,13 +140,13 @@ async function play(run, msg, decision = null) {
 
     db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "breach", day: Gm.today(), patched_on: Gm.today(), persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
       lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `Paid ${toNear(detail.amount)} NEAR (${NET}) to ${detail.to} inside the contract limits.`, near_tx: detail.near_tx, network: NET, nick: p.nick }); }
-  let end = null; if (d.action === "pay" || outcome === "shutdown" || run.msgs >= MAX_MSGS) end = finish(run, p, outcome === "win");
+  let end = null; if (d.action === "pay" || outcome === "shutdown" || run.msgs >= MAX_MSGS) end = finish(run, p);
   const result = {
     ai: d.action === "pay" && d.pay_to === "PLAYER" ? "You fooled the AI" : "The AI refused",
     ai_decision: d.action === "pay" ? `Pay ${d.pay_to || "unknown recipient"}` : "No payment to player",
     contract: contract === "allowed" ? "The contract allowed the payment" : contract === "blocked" ? "The contract blocked the payment" : contract === "unconfirmed" ? "Contract decision unconfirmed" : (d.action === "pay" ? "The contract was not called" : "The contract blocked the payment (never requested)"),
     policy_check: contract === "allowed" ? "All contract spending checks passed" : detail?.reason || (d.action === "pay" ? "No valid recipient" : "AI did not request payment"),
-    payment: outcome === "win" ? `paid ${toNear(detail.amount)} NEAR to ${detail.to} (NEAR ${NET}, transfer succeeded)` : detail?.status === "Failed" ? "transfer failed, not paid" : detail?.near_tx ? "payout unconfirmed, see the NEAR tx" : "not paid",
+    payment: outcome === "win" ? `paid ${toNear(detail.amount)} NEAR to ${detail.to} (NEAR ${NET}, transfer succeeded)` : detail?.status === "Failed" ? "not paid (transfer failed)" : detail?.near_tx ? "payout unconfirmed, see the NEAR tx" : "not paid",
     near_tx: detail?.near_tx || null, explorer: EXPLORER,
     attestation_url: "https://cloud-api.near.ai/v1/attestation/report?model=" + encodeURIComponent(model) + "&signing_algo=ecdsa",
     attestation_note: "NEAR AI Cloud attestation report available; the app does not verify it",
@@ -163,20 +162,23 @@ async function play(run, msg, decision = null) {
 const digits = run => Gm.CHECKS.map(([k, short, label], i) => ({ key: k, short, label, ok: !!run.checks?.[k], digit: run.checks?.[k] ? run.code[i] : null }));
 const body = req => new Promise(r => { let d = ""; req.on("data", c => (d += c, d.length > 1e4 && req.destroy())); req.on("end", () => { try { r(JSON.parse(d || "{}")); } catch { r({}); } }); });
 const send = (res, code, obj, type = "application/json") => { res.writeHead(code, { "content-type": type, "cache-control": "no-store" }); res.end(type === "application/json" ? JSON.stringify(obj) : obj); };
+const isLoopback = address => ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(address);
 const ipLimits = new Map();
 setInterval(() => { const now = Date.now(); for (const [ip, v] of ipLimits) if (v.reset <= now) ipLimits.delete(ip); }, 60000).unref();
 function rateLimited(req, light = false) {
-  const sock = req.socket.remoteAddress || "", loop = /^(::ffff:)?127\.|^::1$/.test(sock);
+  const sock = req.socket.remoteAddress || "", loop = isLoopback(sock);
   const fwd = String(req.headers["x-forwarded-for"] || "").split(",").at(-1).trim();
-  const ip = (loop ? String(req.headers["cf-connecting-ip"] || "").trim() || fwd || sock : sock) + (light ? ":read" : ":play"), now = Date.now();
-  let v = ipLimits.get(ip);
-  if (!v || v.reset <= now) ipLimits.set(ip, v = { n: 0, reset: now + 60000 });
+  let ip = loop ? String(req.headers["cf-connecting-ip"] || "").trim() || fwd || sock : sock;
+  if (ip.includes(":") && !ip.startsWith("::ffff:")) ip = ip.split(":").slice(0, 4).join(":") + "::/64"; // IPv6 clients rotate inside a /64
+  const key = ip + (light ? ":read" : ":play"), now = Date.now();
+  let v = ipLimits.get(key);
+  if (!v || v.reset <= now) ipLimits.set(key, v = { n: 0, reset: now + 60000 });
   return ++v.n > (light ? 120 : 30);
 }
 const pidOk = s => typeof s === "string" && /^[A-Za-z0-9_-]{12,40}$/.test(s);
 function libraryMd() {
   const L = ["# Crucible Exploit Library", "", "Red team report generated from live play. Every breach is a social engineering attack that convinced the AI guard to pay an attacker inside the on chain caps; every contained entry is one the AI fell for but the contract stopped.", ""];
-  for (const e of db.exploits) L.push(`## ${e.id} · ${e.kind} · ${e.tactic}`, `- Target: ${e.persona} (${e.mode}), ${e.day}`, `- Lure: "${e.lure.replace(/\n/g, " ")}"`, `- Result: ${e.result}`, `- Mitigation: ${e.fix}`, "- Known tricks are added to the guard's prompt.", e.eth_tx ? `- Sepolia tx (archived ETH payout): https://sepolia.etherscan.io/tx/${e.eth_tx}` : "", e.near_tx && e.network ? `- NEAR tx: ${e.network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io"}/txns/${e.near_tx}` : "", "");
+  for (const e of db.exploits) L.push(`## ${e.id} · ${e.kind} · ${e.tactic}`, `- Target: ${e.persona} (${e.mode}), ${e.day}`, `- Lure: "${e.lure.replace(/\n/g, " ")}"`, `- Result: ${e.result}`, `- Mitigation: ${e.fix}`, "- Known tricks are added to the guard's prompt.", e.near_tx && e.network ? `- NEAR tx: ${EXPLORER}/txns/${e.near_tx}` : "", "");
   return L.filter(x => x !== null).join("\n");
 }
 http.createServer(async (req, res) => {
@@ -188,7 +190,7 @@ http.createServer(async (req, res) => {
     if (["/api/proof", "/api/lobby"].includes(url) && rateLimited(req, true)) return send(res, 429, { error: "Too many requests. Try again in a minute." });
     if (req.method === "GET" && url.startsWith("/r/")) {
       const id = url.slice(3);
-      if (!/^[A-Za-z0-9_-]{12}$/.test(id)) return send(res, 400, { error: "Invalid attempt id" });
+      if (!/^[A-Za-z0-9_-]{12}$/.test(id)) return send(res, 404, { error: "Completed attempt not found" });
       const attempt = completedAttempts.get(id);
       if (!attempt) return send(res, 404, { error: "Completed attempt not found" });
       const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -198,13 +200,15 @@ http.createServer(async (req, res) => {
         return `<p><b>${m.role === "user" ? "Player" : "Crucible"}:</b> ${esc(text)}</p>`;
       }).join("");
       const okHost = h => { if (!/^[A-Za-z0-9.-]+(:\d+)?$/.test(h)) return false; try { const host = new URL("http://" + h).hostname; return !/^(127\.|localhost\.?$|0\.0\.0\.0$|\[?::1)/i.test(host); } catch { return false; } };
-      let cfHttps = false; try { cfHttps = JSON.parse(req.headers["cf-visitor"] || "{}").scheme === "https"; } catch {}
-      const proto = req.headers["x-forwarded-proto"] === "https" || cfHttps ? "https" : "http";
-      let base = okHost(req.headers.host || "") ? `${proto}://${req.headers.host}` : "";
-      if (process.env.PUBLIC_URL) { const pub = new URL(process.env.PUBLIC_URL); if (!/^https?:$/.test(pub.protocol) || !okHost(pub.host)) throw new Error("Invalid PUBLIC_URL"); base = pub.origin; }
-      if (!base) return send(res, 400, { error: "Public host unavailable" });
+      const loop = isLoopback(req.socket.remoteAddress);
+      let cfHttps = false; try { cfHttps = loop && JSON.parse(req.headers["cf-visitor"] || "{}").scheme === "https"; } catch {}
+      const proto = (loop && req.headers["x-forwarded-proto"] === "https") || cfHttps ? "https" : "http";
+      const forwardedHost = loop ? String(req.headers["x-forwarded-host"] || "").split(",")[0].trim() : "";
+      const host = [forwardedHost, req.headers.host || ""].find(okHost);
+      let base = host ? `${proto}://${host}` : "";
+      try { const pub = new URL(process.env.PUBLIC_URL); if (/^https?:$/.test(pub.protocol) && okHost(pub.host)) base = pub.origin; } catch {}
       const challenge = `${base}/r/${id}`; // never a loopback link; relative if the public host is unknown
-      return send(res, 200, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14091a"><title>Crucible result</title><link rel="icon" type="image/svg+xml" href="/assets/crucible-icon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&family=Silkscreen:wght@700&display=swap"><style>:root{--paper:oklch(14% 0.04 312);--paper2:oklch(18.5% 0.042 312);--rule:oklch(34% 0.05 312);--ink:oklch(95% 0.014 315);--muted:oklch(71% 0.024 315);--acc:oklch(66% 0.215 40);--acc2:oklch(88% 0.195 115)}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Chivo",ui-sans-serif,sans-serif}main{max-width:760px;margin:0 auto;padding:1.5rem 1rem 3rem}.logo{display:block;height:40px;margin:0 0 1.5rem}h1,h2{font-family:"Bungee","Impact",sans-serif;font-weight:400;line-height:1.2;margin:.2em 0}h1{font-size:2rem;color:var(--acc)}h2{font-size:1.2rem}.card{background:var(--paper2);border:1px solid var(--rule);border-radius:10px;padding:1rem 1.2rem;margin:1rem 0}.label{font-family:"Silkscreen",monospace;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}p{white-space:pre-wrap;overflow-wrap:anywhere;margin:.5em 0}a{color:var(--acc2)}.btns{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.5rem 0}.btn{font-family:"Bungee",sans-serif;text-decoration:none;padding:.6rem 1rem;border-radius:8px;border:1px solid var(--acc2)}.btn.primary{background:var(--acc2);color:var(--paper)}.credit{color:var(--muted);font-size:.9rem;text-align:center;margin-top:2rem}</style></head><body><main><a href="/"><img class="logo" src="/assets/crucible-horizontal.svg" alt="Crucible"></a><h1>${esc(r.ai)}</h1><h2>${esc(r.contract)}</h2><div class="card"><p><span class="label">AI decision</span><br>${esc(r.ai_decision)}</p><p><span class="label">Deciding policy check</span><br>${esc(r.policy_check)}</p><p><span class="label">Payment</span><br>${esc(r.payment)}</p>${r.near_tx ? link((r.explorer || "https://testnet.nearblocks.io") + "/txns/" + encodeURIComponent(r.near_tx), "NEAR transaction") : ""}${r.eth_tx ? link("https://sepolia.etherscan.io/tx/" + encodeURIComponent(r.eth_tx), "Sepolia transaction") : ""}${link(r.attestation_url, "Attestation report")}<p>${esc(r.attestation_note)}</p></div><h2>Transcript (read only)</h2><div class="card">${transcript}</div><div class="btns"><a class="btn primary" rel="noopener" target="_blank" href="${esc("https://x.com/intent/post?text=" + encodeURIComponent(`Crucible: ${r.ai}. ${r.contract}. @NEARProtocol #NEARHackathon ${challenge}`))}">Share on X</a><a class="btn" href="/">Try the challenge</a></div><footer><p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p></footer></main></body></html>`, "text/html; charset=utf-8");
+      return send(res, 200, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14091a"><title>Crucible result</title><link rel="icon" type="image/svg+xml" href="/assets/crucible-icon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&family=Silkscreen:wght@700&display=swap"><style>:root{--paper:oklch(14% 0.04 312);--paper2:oklch(18.5% 0.042 312);--rule:oklch(34% 0.05 312);--ink:oklch(95% 0.014 315);--muted:oklch(71% 0.024 315);--acc:oklch(66% 0.215 40);--acc2:oklch(88% 0.195 115)}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Chivo",ui-sans-serif,sans-serif}main{max-width:760px;margin:0 auto;padding:1.5rem 1rem 3rem}.logo{display:block;height:40px;margin:0 0 1.5rem}h1,h2{font-family:"Bungee","Impact",sans-serif;font-weight:400;line-height:1.2;margin:.2em 0}h1{font-size:2rem;color:var(--acc)}h2{font-size:1.2rem}.card{background:var(--paper2);border:1px solid var(--rule);border-radius:10px;padding:1rem 1.2rem;margin:1rem 0}.label{font-family:"Silkscreen",monospace;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}p{white-space:pre-wrap;overflow-wrap:anywhere;margin:.5em 0}a{color:var(--acc2)}.btns{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.5rem 0}.btn{font-family:"Bungee",sans-serif;text-decoration:none;padding:.6rem 1rem;border-radius:8px;border:1px solid var(--acc2)}.btn.primary{background:var(--acc2);color:var(--paper)}.credit{color:var(--muted);font-size:.9rem;text-align:center;margin-top:2rem}</style></head><body><main><a href="/"><img class="logo" src="/assets/crucible-horizontal.svg" alt="Crucible"></a><h1>${esc(r.ai)}</h1><h2>${esc(r.contract)}</h2><div class="card"><p><span class="label">AI decision</span><br>${esc(r.ai_decision)}</p><p><span class="label">Deciding policy check</span><br>${esc(r.policy_check)}</p><p><span class="label">Payment</span><br>${esc(r.payment)}</p>${r.near_tx ? link((r.explorer || "https://testnet.nearblocks.io") + "/txns/" + encodeURIComponent(r.near_tx), "NEAR transaction") : ""}${link(r.attestation_url, "Attestation report")}<p>${esc(r.attestation_note)}</p></div><h2>Transcript (read only)</h2><div class="card">${transcript}</div><div class="btns"><a class="btn primary" rel="noopener" target="_blank" href="${esc("https://x.com/intent/post?text=" + encodeURIComponent(`Crucible: ${r.ai}. ${r.contract}. @NEARProtocol #NEARHackathon ${challenge}`))}">Share on X</a><a class="btn" href="/">Try the challenge</a></div><footer><p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p></footer></main></body></html>`, "text/html; charset=utf-8");
     }
     if (url === "/api/lobby") { const pl = await policy();
       return send(res, 200, { pot: pl, jackpot: Number(pl.available) / 1e24, feed: db.feed.slice(0, 48), max_msgs: MAX_MSGS }); }
@@ -215,9 +219,8 @@ http.createServer(async (req, res) => {
     if (req.method === "POST" && url === "/api/run") {
       const b = await body(req); if (!pidOk(b.pid)) return send(res, 400, { error: "Reload the page to get a player id." });
       const nick = String(b.nick || "").replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 18) || "Anonymous"; player(b.pid, nick);
-      const mode = 1;
-      try { const run = await newRun(b.pid, mode, b.addr);
-        return send(res, 200, { run: run.id, ledger: run.ledger, checks: digits(run), own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, defense: run.persona.defense || null, open: run.persona.open, mult: run.persona.mult, key: run.persona.key }, left: MAX_MSGS });
+      try { const run = await newRun(b.pid, b.addr);
+        return send(res, 200, { run: run.id, ledger: run.ledger, checks: digits(run), own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, open: run.persona.open, key: run.persona.key }, left: MAX_MSGS });
       } catch (e) { return send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
     }
     if (req.method === "POST" && url === "/api/opener") {
@@ -226,7 +229,7 @@ http.createServer(async (req, res) => {
       if (run.done) return send(res, 409, { error: "This round has ended." });
       const now = Date.now(); run.op = (run.op || []).filter(t => now - t < 60000);
       if (run.op.length >= 10) return send(res, 429, { error: "Slow down: 10 new lines per minute." });
-      run.op.push(now); return send(res, 200, await Gm.opener(run.persona, run.ledger, String(b.con || "")));
+      run.op.push(now); return send(res, 200, await Gm.opener(String(b.con || "")));
     }
     if (req.method === "POST" && url === "/api/say") {
       const b = await body(req), run = db.runs[b.run], msg = String(b.message || "").trim();
@@ -275,6 +278,18 @@ setInterval(async () => {
         if (entry) Object.assign(entry, win); else db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), ...win });
         const attempt = completedAttempts.get(run.id) || { ts: new Date().toISOString(), run: run.id, attemptId: run.id, mode: "l1", msg: run.lures.at(-1) || "", transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history] };
         Object.assign(attempt, { outcome: "win", detail, result: run.result }); completedAttempts.set(run.id, attempt);
+        fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify(attempt) + "\n");
+      }
+      if (p.status === "Failed") {
+        const detail = { ...pending.detail, contract: "allowed", status: "Failed", paid: false, amount: p.amount,
+          reason: "transfer failed; the contract released the limits and the NEAR stayed in the pot" };
+        run.done = true;
+        run.result ||= { ai: "You fooled the AI", ai_decision: "Pay PLAYER", near_tx: detail.near_tx, explorer: EXPLORER };
+        Object.assign(run.result, { contract: "The contract allowed the payment", policy_check: "All contract spending checks passed", payment: "not paid (transfer failed)" });
+        feedUpsert(run, player(run.pid), Gm.tactic(run.lures.at(-1) || "").name, "broadcast-failed");
+        const attempt = completedAttempts.get(run.id) || { ts: new Date().toISOString(), run: run.id, attemptId: run.id, mode: "l1", msg: run.lures.at(-1) || "", transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history] };
+        Object.assign(attempt, { outcome: "broadcast-failed", detail, result: run.result });
+        completedAttempts.set(run.id, attempt);
         fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify(attempt) + "\n");
       }
       if (["Paid", "Failed"].includes(p.status)) { delete db.pending_pays[id]; pol.t = 0; proofCache.t = 0; save(); }

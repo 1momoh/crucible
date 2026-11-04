@@ -1,18 +1,14 @@
-// Network config for the native NEAR pot. Everything network-specific comes from env, so mainnet is config + deploy only.
-//   NEAR_NETWORK=testnet|mainnet   POT_CONTRACT=<pot account>   NEAR_RPC=<optional rpc url>
-//   POT_OWNER_KEY / POT_AGENT_KEY = paths to {account_id, private_key} JSON files (defaults under /root/.crucible/)
 import { connect, keyStores, KeyPair, utils } from "near-api-js";
 import fs from "fs";
-export const NET = process.env.NEAR_NETWORK || "testnet";
-if (!["testnet", "mainnet"].includes(NET)) throw new Error("NEAR_NETWORK must be testnet or mainnet");
-const SUF = NET === "mainnet" ? ".near" : ".testnet";
-export const RPC = process.env.NEAR_RPC || (NET === "mainnet" ? "https://rpc.mainnet.fastnear.com" : "https://test.rpc.fastnear.com");
-export const EXPLORER = NET === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
+export const NET = "testnet";
+if (process.env.NEAR_NETWORK && process.env.NEAR_NETWORK !== NET) throw new Error("testnet only");
+const SUF = ".testnet";
+export const RPC = process.env.NEAR_RPC || "https://test.rpc.fastnear.com";
+export const EXPLORER = "https://testnet.nearblocks.io";
 export const POT = process.env.POT_CONTRACT || "";
 const D = (process.env.CRUCIBLE_KEYS || "/root/.crucible").replace(/\/+$/, "") + "/";
 export const OWNER_KEY = process.env.POT_OWNER_KEY || D + `pot-owner.${NET}.json`, AGENT_KEY = process.env.POT_AGENT_KEY || D + `pot-agent.${NET}.json`;
 export const G = 100_000_000_000_000n;
-export const YOCTO = 10n ** 24n;
 export const toNear = y => utils.format.formatNearAmount(String(y), 4);
 export async function account(file) {
   const c = JSON.parse(fs.readFileSync(file));
@@ -39,4 +35,3 @@ export async function accountExists(id) {
   if (/UNKNOWN_ACCOUNT|does not exist/i.test(e)) return false;
   throw new Error("NEAR RPC unavailable");
 }
-export async function txOutcome(hash, sender) { return (await rpc("EXPERIMENTAL_tx_status", { tx_hash: hash, sender_account_id: sender, wait_until: "FINAL" })).result; }

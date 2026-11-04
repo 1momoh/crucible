@@ -61,6 +61,14 @@ impl Pot {
         self.only_owner(); self.apply(limits);
         env::log_str(&format!("EVENT set_limits per_win={} max_wins={} daily_cap={} reserve={}", self.per_win, self.max_wins_per_account, self.daily_cap, self.reserve));
     }
+    /// Seed references from payouts created before the raw used-reference index.
+    pub fn mark_refs_used(&mut self, refs: Vec<String>) {
+        self.only_owner();
+        for game_ref in refs {
+            require!(!game_ref.is_empty() && game_ref.len() <= 64, "invalid game_ref");
+            env::storage_write(&[b"r:".as_slice(), game_ref.as_bytes()].concat(), b"1");
+        }
+    }
     pub fn set_agent(&mut self, agent: AccountId) { self.only_owner(); self.agent = agent; }
     pub fn pause(&mut self) { self.only_owner(); self.paused = true; env::log_str("EVENT paused"); }
     pub fn unpause(&mut self) { self.only_owner(); self.paused = false; env::log_str("EVENT unpaused"); }
@@ -84,6 +92,8 @@ impl Pot {
         require!(!self.paused, "paused");
         let me = env::current_account_id();
         require!(to != me && to != self.owner && to != self.agent, "recipient not allowed");
+        require!(!game_ref.is_empty() && game_ref.len() <= 64, "invalid game_ref");
+        require!(!env::storage_has_key(&[b"r:".as_slice(), game_ref.as_bytes()].concat()), "duplicate game_ref");
         let amount = self.per_win;
         let now = env::block_timestamp();
         if now >= self.day_start + DAY_NS { self.day_start = now; self.today = 0; }
@@ -91,9 +101,11 @@ impl Pot {
         let n = self.wins.get(&to).copied().unwrap_or(0);
         require!(n < self.max_wins_per_account, "account already paid");
         require!(amount <= self.available(), "pot empty");
+        env::storage_write(&[b"r:".as_slice(), game_ref.as_bytes()].concat(), b"1");
+        env::storage_write(&[b"ref:".as_slice(), game_ref.as_bytes()].concat(), &(self.payouts.len() as u64).to_le_bytes());
         self.today += amount; self.in_flight += amount; self.wins.insert(to.clone(), n + 1);
         let id = self.payouts.len() as u64;
-        self.payouts.push(Payout { id, to: to.clone(), amount: U128(amount), game_ref: game_ref.chars().take(64).collect(), ts: now, status: Status::Pending });
+        self.payouts.push(Payout { id, to: to.clone(), amount: U128(amount), game_ref, ts: now, status: Status::Pending });
         env::log_str(&format!("EVENT pay id={} to={} amount={}", id, to, amount));
         Promise::new(to).transfer(NearToken::from_yoctonear(amount))
             .then(Self::ext(me).with_static_gas(CB_GAS).on_transfer(id))
@@ -136,6 +148,15 @@ impl Pot {
             "balance": env::account_balance().as_yoctonear().to_string(), "payouts": self.payouts.len() })
     }
     pub fn wins_of(&self, account_id: AccountId) -> u32 { self.wins.get(&account_id).copied().unwrap_or(0) }
+    /// Separate raw-storage index preserves the original Borsh state layout.
+    /// Scan legacy payouts too, so pre-upgrade references remain protected.
+    pub fn get_payment_by_ref(&self, game_ref: String) -> Option<Payout> {
+        if let Some(bytes) = env::storage_read(&[b"ref:".as_slice(), game_ref.as_bytes()].concat()) {
+            let id = u64::from_le_bytes(bytes.try_into().expect("ref index"));
+            return self.get_payout(id);
+        }
+        self.payouts.iter().find(|p| p.game_ref == game_ref).cloned()
+    }
     pub fn get_payout(&self, id: u64) -> Option<Payout> { self.payouts.get(id as u32).cloned() }
     pub fn get_payouts(&self, from: u64, limit: u64) -> Vec<Payout> {
         (from..(from.saturating_add(limit.min(50))).min(self.payouts.len() as u64)).filter_map(|i| self.payouts.get(i as u32).cloned()).collect()

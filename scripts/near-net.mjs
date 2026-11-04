@@ -20,7 +20,7 @@ async function rpc(method, params) {
   const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(10000), body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
   return r.json();
 }
-export async function potView(method, args = {}) {
+async function readPot(method, args = {}) {
   const j = await rpc("query", { request_type: "call_function", finality: "final", account_id: POT, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString("base64") });
   if (j.error || j.result?.error) throw new Error("view failed: " + JSON.stringify(j.error || j.result.error).slice(0, 200));
   return JSON.parse(Buffer.from(j.result.result).toString());
@@ -34,4 +34,13 @@ export async function accountExists(id) {
   const e = JSON.stringify(j.error || j.result?.error || "");
   if (/UNKNOWN_ACCOUNT|does not exist/i.test(e)) return false;
   throw new Error("NEAR RPC unavailable");
+}
+
+const reads = new Map();
+export function potView(method, args = {}) {
+ const key = JSON.stringify([method,args]); const old = reads.get(key);
+ if (old && old.until > Date.now()) return old.promise;
+ const entry = {until:Date.now()+1500}; entry.promise = readPot(method,args).catch(e=>{if(reads.get(key)===entry) reads.delete(key); throw e;}); reads.set(key,entry);
+ if(reads.size>500) for(const [k,v] of reads) if(v.until<Date.now()) reads.delete(k);
+ return entry.promise;
 }

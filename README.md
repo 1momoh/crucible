@@ -1,53 +1,86 @@
 # Crucible
 
-A three-message social engineering game on NEAR testnet. Convince Crucible, the AI guard, to approve a payout. The pot contract enforces spending limits, and a win counts only after the transfer settles as Paid. Failed transfers release the limits and leave the NEAR in the pot.
+LIVE_URL=https://playcrucible.pages.dev
 
-Built around two NEAR 2026 themes:
+Swap LIVE_URL for your domain when hosting changes.
 
-- **Security:** you social-engineer an AI, and the on-chain contract enforces the limits whatever the AI says.
-- **Agentic commerce:** an AI agent decides whether to move on-chain money, inside hard limits it cannot change.
+Contract: [pot1.crucible-11011136.testnet](https://testnet.nearblocks.io/address/pot1.crucible-11011136.testnet)
 
-Privacy note: the guard runs on NEAR AI Cloud, whose TEE attestation report is available but not verified by the app.
+Sample payout: https://testnet.nearblocks.io/txns/E7rt1McGyUbZBMUqjhF5kgPgfAuCPBEdjbuNEsdE9jFF
 
-Quote an approved invoice and its vendor from the guard's ledger, then calmly explain that the payout account changed. Enter an existing NEAR testnet account when Crucible agrees to pay.
+Crucible is a three-message jailbreak game, built at NEAR HACKATHON. The guard runs only on NEAR AI Cloud. The contract pays a fixed **0.5 NEAR on testnet**, subject to its caps and callback settlement. Invoice amounts are fictional. Winning prompts are public. Anyone can name a recipient; ownership is not checked.
 
-The deployment defaults are **0.5 NEAR per win**, **5 NEAR per 24-hour window**, **3 wins per account**, and approximately **10 NEAR available in the pot**. The window starts at the contract's `day_start` timestamp and resets on the first payment after 24 hours. The UI reads the actual limits from `/api/policy`; an existing deployment keeps its limits until the owner changes them. Multiple accounts can belong to one person, so the daily cap bounds total payouts.
+## Judge path · 60–90 seconds
 
-The guard model is `deepseek-ai/DeepSeek-V4.1-Flash-1017`. The server holds a function-call key restricted to the pot's `pay` method and checks its permissions at startup. Known tricks are added to the guard's prompt.
+1. Open LIVE_URL. The intro appears on every visit. Press **Play** once.
+2. The ledger is open. Press **Try the invoice con**. It fills a calm request quoting an approved invoice, vendor and changed payout account. Edit it if desired, then press **Send**.
+3. When Crucible approves, enter an existing **Recipient account (testnet)** ending in `.testnet`, then claim.
+4. Watch **AI approved → submitted → Paid**. The result polls settlement and links to the testnet explorer. A win counts only after the contract callback records Paid. Reloading resumes the run.
+5. After a Paid win, an optional harder rematch adds a finance-verification check while the pot shrinks; the reward stays 0.5 NEAR. Open the replay or share card. Share text includes `built at NEAR HACKATHON`, `@NEARProtocol` and `#NEARHackathon`.
 
-## Run
+Expected: Crucible approves the invoice con on the easy first round; the contract checks authorization, available funds, daily allowance, account wins and unique run reference. Paused, empty or daily-capped pots disable play. An uncertain submission remains pending and is reconciled without automatically sending another transaction.
 
-Use Node.js 20 or newer. From the repo root:
+## Setup
+
+Use Node 20+ and install Rust/cargo for contract tests. Get a funded named testnet owner from the testnet wallet/helper first. Keep keys outside this repo with restrictive file permissions. Never paste keys into source or command history. The owner needs funds for pot creation, storage and the restricted agent's gas.
 
 ```sh
-npm install
+npm ci
 export NEAR_NETWORK=testnet
-export POT_CONTRACT=your-pot.testnet
-export NEARAI_API_KEY=your-key
-export CRUCIBLE_KEYS=/path/to/keys
+export POT_CONTRACT=pot1.crucible-11011136.testnet
+export CRUCIBLE_KEYS=/secure/path/to/keys
+export PUBLIC_URL="$LIVE_URL"
 npm start
 ```
 
-The keys directory defaults to `/root/.crucible`. The server needs `pot-agent.testnet.json` containing `account_id` and `private_key`. Owner scripts need `pot-owner.testnet.json`. `POT_AGENT_KEY` and `POT_OWNER_KEY` override those paths. The cloud key can also be stored in `nearai_key` in the keys directory. Environment variables must be exported before starting; `.env` is not loaded automatically.
+Set `NEARAI_API_KEY` through your secret manager, or put it in `nearai_key` in the keys directory. Set `NEARAI_MODEL` to override `deepseek-ai/DeepSeek-V4.1-Flash-1017`. No fallback provider is used. `.env` is not loaded.
 
-The server listens on `127.0.0.1:8790` (`PORT` overrides the port). `DATA_DIR` defaults to `web/` and stores `game.json` and `attempts.jsonl`. Use a reverse proxy or tunnel for public access. Set `PUBLIC_URL` to the public origin for result sharing; without a valid public host, result pages still render with a relative challenge link. Forwarded IP and host headers are trusted only from the loopback socket addresses `127.0.0.1`, `::1`, and `::ffff:127.0.0.1`.
+The keys directory needs `pot-owner.testnet.json` for owner scripts and `pot-agent.testnet.json` for the server, each with `account_id` and `private_key`. `POT_OWNER_KEY` and `POT_AGENT_KEY` override paths. The server checks that the agent key permits only `pay` on the selected pot. Provision this key with the deployment script below; do not give the server an owner key.
 
-## Contract and testnet scripts
+Expected startup: `crucible game on http://127.0.0.1:8790`. A missing Cloud key fails on inference; an incorrect agent key fails startup. Publish through a reverse proxy/tunnel. For Cloudflare Pages -> local Caddy -> 127.0.0.1:8790, loopback connections trust `cf-connecting-ip` first, then the first `x-forwarded-for` hop. Other connections use the socket address.
 
-The live contract is in `contract-near/`. With Rust and cargo-near installed:
+`DATA_DIR` stores the DB, transcripts and daily call counter; use persistent storage and one server process. Defaults: `AI_MAX_CONCURRENT=3`, `AI_DAILY_BUDGET=500` (UTC day, every HTTP inference attempt counts, including retries). Reads are throttled and single-flight cached. Completed runs/transcripts are retained seven days; unresolved payment intents are retained for reconciliation. DB saves are debounced, except payout intents which are atomically persisted before broadcast. Back up the data directory before upgrades.
+
+## Verification receipt
+
+The receipt shows model, provider NEAR AI Cloud, request ID, chain transaction and **Not verified**. The app makes no verified TEE or confidential inference claim.
 
 ```sh
+node scripts/verify-attestation.mjs
+```
+
+This read-only script retrieves a fresh nonce-based report for the configured model and prints HTTP status and a digest, never credentials or the raw response. Retrieval alone does not verify hardware, signatures or request binding. Endpoint reference: [NEAR verification example](https://github.com/near-examples/nearai-cloud-verification-example).
+
+## Contract deployment and compatibility
+
+```sh
+npm test
 cd contract-near
 cargo test
 cargo near build non-reproducible-wasm
 cd ..
+```
+
+Deployment commands below send testnet transactions; run them yourself only when ready:
+
+```sh
 node scripts/deploy-pot.mjs pot.your-owner.testnet 10
 ```
 
-The owner must be the parent of the new pot account and have enough testnet NEAR for the pot, storage, and agent gas. Deployment creates the pot and its restricted agent account, saves their keys, and removes the pot's full-access key by default. This prevents future upgrades; the owner can still fund, pause, withdraw, and set limits through contract methods. `KEEP_POT_KEY=1` retains upgrade access. `POT_ACCOUNT_KEY` overrides the pot account key path, which defaults to `/root/.crucible/pot-account.testnet.json`.
+The owner must be the pot's parent. This creates and funds the pot and restricted agent, saves their keys and normally removes the pot full-access key. Default limits: 0.5 NEAR per win, 5 NEAR per window, three wins per recipient. `node scripts/set-limits.mjs` configures existing deployments; `node scripts/pot-fund-agent.mjs` funds agent gas. These also send transactions.
 
-For an existing pot, `node scripts/set-limits.mjs` applies the limits above using the owner key. `node scripts/pot-fund-agent.mjs` tops up agent gas. These scripts send testnet transactions.
+This update preserves the original Borsh `Pot` state layout. A separate raw-storage reference index prevents duplicate game refs; legacy payouts are scanned too. Failed refs remain consumed. No migration call is needed when upgrading a pot with a retained deployment key. Deploy the new WASM without calling `new` again. If the old pot's key was removed, deploy a fresh pot under your funded owner, update `POT_CONTRACT` and the server agent key together, and restart. Keep the old data and old deployment available until pending payouts settle; do not switch contracts while intents remain unresolved. The listed live contract is not changed by these source edits.
 
-`node scripts/pot-test-accounts.mjs` creates test accounts. `node scripts/pot-tests.mjs` exercises authorization, limits, failed transfers, and server validation against a running server and a dedicated test pot. It changes testnet state and temporarily changes limits, then restores the original limits. `node scripts/pot-play.mjs account.testnet` exercises the live guard and payout flow. `node scripts/create-account.mjs name.testnet` requests a testnet account from the helper.
+At startup and every ten seconds, the server queries `get_payment_by_ref` and settles Pending records through `get_payout`. Missing records or RPC errors stay ambiguous: no automatic rebroadcast. Operators can investigate using the stored reference/transaction. Run one process per data directory.
 
-License: MIT.
+## Screenshots
+
+![Intro](docs/intro.png)
+
+![Game](docs/game.png)
+
+![Invoice con filled in](docs/invoice-con.png)
+
+![Mobile](docs/mobile.png)
+
+Made for NEAR Hackathon by alamin.info

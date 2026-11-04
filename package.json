@@ -4,7 +4,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "start": "node web/server.mjs"
+    "start": "node web/server.mjs",
+    "test": "node --test web/*.test.mjs"
   },
   "dependencies": {
     "near-api-js": "^5.1.1"

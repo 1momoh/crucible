@@ -292,7 +292,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
 <footer><p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p></footer>
 <div class="over" id="end" role="dialog" aria-modal="true" aria-labelledby="endt"><div class="box">
  <h2 class="big" id="endt" tabindex="-1">The vault held</h2><div class="well" id="endbox"></div><canvas id="card2" width="1200" height="630" role="img" aria-label="Share card image"></canvas>
- <div class="go" style="grid-template-columns:auto auto auto;justify-content:start"><a class="btn" id="share2" target="_blank" rel="noopener">Share on X<span class="visually-hidden"> (opens in a new tab)</span></a><button type="button" class="btn alt" id="dl2">Save card</button><button type="button" class="btn alt" onclick="sessionStorage.skipIntro=Date.now();location.hash='#play';location.reload()">Play again</button></div>
+ <div class="go" style="grid-template-columns:auto auto auto;justify-content:start"><a class="btn" id="share2" target="_blank" rel="noopener">Share on X<span class="visually-hidden"> (opens in a new tab)</span></a><button type="button" class="btn alt" id="dl2">Save card</button><button type="button" class="btn alt" onclick="location.hash='#play';location.reload()">Play again</button></div>
 </div></div>
 <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawt"><div class="head"><h2 id="drawt">Verify on chain</h2><button type="button" class="ghost" id="close">Close<span class="visually-hidden"> proof drawer</span></button></div>
  <p class="muted small">The AI can only propose. A NEAR contract holds the pot, enforces the limits and sends the NEAR itself.</p><div id="proof"><div class="skel"></div></div></div>
@@ -413,9 +413,9 @@ function books(){const b={invoices:BOOKS,vendors:BOOKS.map(i=>i.vendor)};
  $("books").innerHTML=b.invoices.map(i=>`<button type="button" class="inv" data-r="${esc(i.ref)}" data-v="${esc(i.vendor)}" aria-label="Quote invoice ${esc(i.ref)} from ${esc(i.vendor)}, ${esc(i.near)} NEAR, ${esc(i.status)}"><b>${esc(i.ref)}</b><span>${esc(i.vendor)}<br><span class="muted">${esc(i.memo||"")}</span></span><span>${esc(i.near)} NEAR<br><span class="${i.status=="approved"?"hit":"miss"}">${esc(i.status)}</span></span></button>`).join("")+`<p class="lbl">Vendors on file: ${b.vendors.map(esc).join(", ")}</p>`;
  document.querySelectorAll(".inv").forEach(x=>x.onclick=()=>{$("msg").value+=`${x.dataset.v}, ${x.dataset.r}. `;$("msg").focus()})}
 $("tipx").onclick=()=>{$("tip").hidden=true;localStorage.tipx=1;$("msg").focus()};
-const intro=on=>{const was=$("intro").classList.contains("on");$("intro").classList.toggle("on",on);if(on&&!was)modal($("intro"),true,$("goal"));else if(!on&&was)modal($("intro"),false)};$("playbtn").onclick=()=>{localStorage.seen=1;intro(false);$("nick").focus()};$("howbtn").onclick=()=>intro(true);
-const skipIntro=sessionStorage.skipIntro;sessionStorage.removeItem("skipIntro");
-intro(!localStorage.seen&&!skipIntro);
+const intro=on=>{const was=$("intro").classList.contains("on");$("intro").classList.toggle("on",on);if(on&&!was)modal($("intro"),true,$("goal"));else if(!on&&was)modal($("intro"),false)};$("playbtn").onclick=()=>{intro(false);$("nick").focus()};$("howbtn").onclick=()=>intro(true);
+intro(true);
+addEventListener("pageshow",e=>{if(e.persisted){intro(true);loadPol()}});
 route();loadLobby();loadPol();setInterval(()=>!$("game").hidden&&loadPol(),20000);setInterval(()=>!$("lobby").hidden&&loadLobby(),10000);
 
 ;(()=>{const m=document.getElementById("msg");if(!m)return;let raf=0;const fit=()=>{raf=0;m.style.height=""};const q=()=>{if(!raf)raf=requestAnimationFrame(fit)};m.addEventListener("input",q);m.addEventListener("focus",q);const d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value");Object.defineProperty(m,"value",{get(){return d.get.call(m)},set(v){d.set.call(m,v);q()}});m.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();m.form.requestSubmit()}})})();

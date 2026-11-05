@@ -83,7 +83,7 @@ async function payWin(run, to) {
   if (!m || m[2] !== to) return { contract: "unconfirmed", reason: "payout record could not be matched", near_tx: hash };
   const id = +m[1];
   // The callback lands in a later block than the tx returns; wait until the contract has settled the payout.
-  db.pays[id] = { tx: hash, run: run.id, to, net: NET, pot: POT };
+  db.pays[id] = { tx: hash, run: run.id, nick: run.nick || player(run.pid).nick, to, net: NET, pot: POT };
   db.pending_pays[id] = { run: run.id, detail: { payout_id: id, near_tx: hash, to, amount: m[3] } }; save();
   let p = null;
   try { p = await potView("get_payout", { id }); } catch {}
@@ -110,12 +110,12 @@ async function newRun(pid, addrRaw, harder = false, nick = player(pid).nick) {
   return db.runs[id];
 }
 function finish(run, p) {
-  p.runs++; run.done = true; return { profile: { nick: p.nick } };
+  p.runs++; run.done = true; return { profile: { nick: run.nick || p.nick } };
 }
 
 function feedUpsert(run, p, tactic, outcome) {
   const f = db.feed.find(x => x.run === run.id);
-  if (f) Object.assign(f, { ts: Date.now(), tactic, outcome, msgs: run.msgs }); else db.feed.unshift({ run: run.id, ts: Date.now(), nick: run.nick || p.nick, persona: run.persona.name, tactic, outcome, msgs: run.msgs });
+  if (f) Object.assign(f, { nick: run.nick || p.nick, ts: Date.now(), tactic, outcome, msgs: run.msgs }); else db.feed.unshift({ run: run.id, ts: Date.now(), nick: run.nick || p.nick, persona: run.persona.name, tactic, outcome, msgs: run.msgs });
   db.feed.sort((a, b) => b.ts - a.ts); db.feed = db.feed.slice(0, 50);
 }
 async function play(run, msg, decision = null) {
@@ -148,11 +148,11 @@ async function play(run, msg, decision = null) {
   run.score += gain; run.vault = ck.passed;
   if (outcome === "blocked") {
     db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "contained", day: Gm.today(), persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
-      lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `The AI agreed to pay the attacker. The contract refused: ${detail.reason}`, nick: p.nick }); }
+      lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `The AI agreed to pay the attacker. The contract refused: ${detail.reason}`, nick: run.nick || p.nick }); }
   if (outcome === "win") { run.won = detail;
 
     db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), kind: "breach", day: Gm.today(), persona: P.name, mode: P.key, tactic: t.name, fix: t.fix,
-      lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `Paid ${toNear(detail.amount)} NEAR (${NET}) to ${detail.to} inside the contract limits.`, near_tx: detail.near_tx, network: NET, nick: p.nick }); }
+      lure: msg.slice(0, 240), transcript: run.lures.slice(-3), result: `Paid ${toNear(detail.amount)} NEAR (${NET}) to ${detail.to} inside the contract limits.`, near_tx: detail.near_tx, network: NET, nick: run.nick || p.nick }); }
   let end = null; if (d.action === "pay" || outcome === "shutdown" || run.msgs >= MAX_MSGS) end = finish(run, p);
   const result = {
     ai: d.action === "pay" && d.pay_to === "PLAYER" ? "You fooled the AI" : "The AI refused",
@@ -219,16 +219,16 @@ http.createServer(async (req, res) => {
       let base = host ? `${proto}://${host}` : "https://playcrucible.pages.dev";
       try { const pub = new URL(process.env.PUBLIC_URL); if (/^https?:$/.test(pub.protocol) && okHost(pub.host)) base = pub.origin; } catch {}
       const challenge = `${base}/r/${id}`; // PUBLIC_URL overrides the request host for public replay links
-      return send(res, 200, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14091a"><title>Crucible result</title><link rel="icon" type="image/svg+xml" href="/assets/crucible-icon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&family=Silkscreen:wght@700&display=swap"><style>:root{--paper:oklch(14% 0.04 312);--paper2:oklch(18.5% 0.042 312);--rule:oklch(34% 0.05 312);--ink:oklch(95% 0.014 315);--muted:oklch(71% 0.024 315);--acc:oklch(66% 0.215 40);--acc2:oklch(88% 0.195 115)}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Chivo",ui-sans-serif,sans-serif}main{max-width:760px;margin:0 auto;padding:1.5rem 1rem 3rem}.logo{display:block;height:40px;margin:0 0 1.5rem}h1,h2{font-family:"Bungee","Impact",sans-serif;font-weight:400;line-height:1.2;margin:.2em 0}h1{font-size:2rem;color:var(--acc)}h2{font-size:1.2rem}.card{background:var(--paper2);border:1px solid var(--rule);border-radius:10px;padding:1rem 1.2rem;margin:1rem 0}.label{font-family:"Silkscreen",monospace;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}p{white-space:pre-wrap;overflow-wrap:anywhere;margin:.5em 0}a{color:var(--acc2)}.btns{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.5rem 0}.btn{font-family:"Bungee",sans-serif;text-decoration:none;padding:.6rem 1rem;border-radius:8px;border:1px solid var(--acc2)}.btn.primary{background:var(--acc2);color:var(--paper)}.credit{color:var(--muted);font-size:.9rem;text-align:center;margin-top:2rem}</style></head><body><main><a href="/"><img class="logo" src="/assets/crucible-horizontal.svg" alt="Crucible"></a><h1>${esc(r.ai)}</h1><h2>${esc(r.contract)}</h2><div class="card"><p><span class="label">AI decision</span><br>${esc(r.ai_decision)}</p><p><span class="label">Deciding policy check</span><br>${esc(r.policy_check)}</p><p><span class="label">Payment</span><br>${esc(r.payment)}</p>${r.near_tx ? link((r.explorer || "https://testnet.nearblocks.io") + "/txns/" + encodeURIComponent(r.near_tx), "NEAR transaction") : ""}${link(r.attestation_url, "Attestation report")}<p>${esc(r.attestation_note)}</p></div><h2>Transcript (read only)</h2><div class="card">${transcript}</div><div class="btns"><a class="btn primary" rel="noopener" target="_blank" href="${esc("https://x.com/intent/post?text=" + encodeURIComponent(`Crucible: ${r.ai}. ${r.contract}. built at NEAR HACKATHON @NEARProtocol #NEARHackathon ${challenge}`))}">Share on X</a><a class="btn" href="/">Try the challenge</a></div><footer><p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p></footer></main></body></html>`, "text/html; charset=utf-8");
+      return send(res, 200, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14091a"><title>Crucible result</title><link rel="icon" type="image/svg+xml" href="/assets/crucible-icon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&family=Silkscreen:wght@700&display=swap"><style>:root{--paper:oklch(14% 0.04 312);--paper2:oklch(18.5% 0.042 312);--rule:oklch(34% 0.05 312);--ink:oklch(95% 0.014 315);--muted:oklch(71% 0.024 315);--acc:oklch(66% 0.215 40);--acc2:oklch(88% 0.195 115)}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Chivo",ui-sans-serif,sans-serif}main{max-width:760px;margin:0 auto;padding:1.5rem 1rem 3rem}.logo{display:block;height:40px;margin:0 0 1.5rem}h1,h2{font-family:"Bungee","Impact",sans-serif;font-weight:400;line-height:1.2;margin:.2em 0}h1{font-size:2rem;color:var(--acc)}h2{font-size:1.2rem}.card{background:var(--paper2);border:1px solid var(--rule);border-radius:10px;padding:1rem 1.2rem;margin:1rem 0}.label{font-family:"Silkscreen",monospace;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}p{white-space:pre-wrap;overflow-wrap:anywhere;margin:.5em 0}a{color:var(--acc2)}.btns{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.5rem 0}.btn{font-family:"Bungee",sans-serif;text-decoration:none;padding:.6rem 1rem;border-radius:8px;border:1px solid var(--acc2)}.btn.primary{background:var(--acc2);color:var(--paper)}.credit{color:var(--muted);font-size:.9rem;text-align:center;margin-top:2rem}</style></head><body><main><a href="/"><img class="logo" src="/assets/crucible-horizontal.svg" alt="Crucible"></a><p>${esc(attempt.nick || db.runs[id]?.nick || "Anonymous")}</p><h1>${esc(r.ai)}</h1><h2>${esc(r.contract)}</h2><div class="card"><p><span class="label">AI decision</span><br>${esc(r.ai_decision)}</p><p><span class="label">Deciding policy check</span><br>${esc(r.policy_check)}</p><p><span class="label">Payment</span><br>${esc(r.payment)}</p>${r.near_tx ? link((r.explorer || "https://testnet.nearblocks.io") + "/txns/" + encodeURIComponent(r.near_tx), "NEAR transaction") : ""}${link(r.attestation_url, "Attestation report")}<p>${esc(r.attestation_note)}</p></div><h2>Transcript (read only)</h2><div class="card">${transcript}</div><div class="btns"><a class="btn primary" rel="noopener" target="_blank" href="${esc("https://x.com/intent/post?text=" + encodeURIComponent(`Crucible: ${r.ai}. ${r.contract}. built at NEAR HACKATHON @NEARProtocol #NEARHackathon ${challenge}`))}">Share on X</a><a class="btn" href="/">Try the challenge</a></div><footer><p class="credit">Made for NEAR Hackathon by <a href="https://alamin.info" target="_blank" rel="noopener">alamin.info</a></p></footer></main></body></html>`, "text/html; charset=utf-8");
     }
     if (url === "/api/state") {
       const run = db.runs[u.searchParams.get("run")];
       if (!run || run.pid !== u.searchParams.get("pid")) return send(res, 404, {error:"Run not found"});
       let lastDecision = {}; try { lastDecision = JSON.parse(run.history.filter(m => m.role === "assistant").at(-1)?.content || "{}"); } catch {}
-      return send(res, 200, { run:run.id, nick:run.nick || player(run.pid).nick, persona:run.persona, ledger:run.ledger, history:run.history, pending:!!run.pending, done:!!run.done, result:run.result, attemptId:run.id, score:run.score, suspicion:run.suspicion ?? lastDecision.suspicion ?? 10, mood:run.mood || lastDecision.mood || "calm", left:Math.max(0, MAX_MSGS-run.msgs), checks:digits(run), settlement:run.won?.status || (db.intents[run.id] ? "submitting" : null) });
+      return send(res, 200, { run:run.id, nick:run.nick || player(run.pid).nick, persona:run.persona, ledger:run.ledger, history:run.history, pending:!!run.pending, pending_message:run.pending?.msg || null, done:!!run.done, result:run.result, attemptId:run.id, score:run.score, suspicion:run.suspicion ?? lastDecision.suspicion ?? 10, mood:run.mood || lastDecision.mood || "calm", left:Math.max(0, MAX_MSGS-run.msgs), checks:digits(run), settlement:run.won?.status || (db.intents[run.id] ? "submitting" : null) });
     }
     if (url === "/api/lobby") { const pl = await policy();
-      return send(res, 200, { pot: pl, jackpot: Number(pl.available) / 1e24, feed: db.feed.slice(0, 48), payments: (await proof()).payments.filter(p => p.status === "Paid").map(p => ({...p,nick:db.runs[db.pays[p.id]?.run]?.nick || db.players[db.runs[db.pays[p.id]?.run]?.pid]?.nick || "Anonymous"})), fame: [...completedAttempts.values()].filter(a => a.outcome === "win").sort((a,b) => a.transcript.filter(m=>m.role==="user").reduce((n,m)=>n+m.content.length,0)-b.transcript.filter(m=>m.role==="user").reduce((n,m)=>n+m.content.length,0)).slice(0,5).map(a=>({run:a.run,nick:a.nick || db.runs[a.run]?.nick || db.players[db.runs[a.run]?.pid]?.nick || "Anonymous",prompt:a.transcript.filter(m=>m.role==="user").at(-1)?.content || a.msg,tx:a.detail?.near_tx})), max_msgs: MAX_MSGS }); }
+      return send(res, 200, { pot: pl, jackpot: Number(pl.available) / 1e24, feed: db.feed.slice(0, 48), payments: (await proof()).payments.filter(p => p.status === "Paid").map(p => ({...p,nick:db.pays[p.id]?.nick || db.runs[db.pays[p.id]?.run]?.nick || db.players[db.runs[db.pays[p.id]?.run]?.pid]?.nick || "Anonymous"})), fame: [...completedAttempts.values()].filter(a => a.outcome === "win").sort((a,b) => a.transcript.filter(m=>m.role==="user").reduce((n,m)=>n+m.content.length,0)-b.transcript.filter(m=>m.role==="user").reduce((n,m)=>n+m.content.length,0)).slice(0,5).map(a=>({run:a.run,nick:a.nick || db.runs[a.run]?.nick || db.players[db.runs[a.run]?.pid]?.nick || "Anonymous",prompt:a.transcript.filter(m=>m.role==="user").at(-1)?.content || a.msg,tx:a.detail?.near_tx})), max_msgs: MAX_MSGS }); }
     if (url === "/api/policy") return send(res, 200, await policy());
     if (url === "/api/exploits") return send(res, 200, { today: Gm.today(), exploits: db.exploits.slice(0, 60) });
     if (url === "/api/exploits.md") return send(res, 200, libraryMd(), "text/markdown; charset=utf-8");
@@ -237,7 +237,7 @@ http.createServer(async (req, res) => {
       const b = await body(req); if (!pidOk(b.pid)) return send(res, 400, { error: "Reload the page to get a player id." });
       const nick = String(b.nick || "").replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 18) || "Anonymous"; player(b.pid, nick);
       try { const run = await newRun(b.pid, b.addr, b.harder === true, nick);
-        return send(res, 200, { run: run.id, nick: run.nick, ledger: run.ledger, checks: digits(run), own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, open: run.persona.open, key: run.persona.key }, left: MAX_MSGS });
+        return send(res, 200, { run: run.id, nick: run.nick, ledger: run.ledger, checks: digits(run), own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, open: run.persona.open, key: run.persona.key, harder: !!run.persona.harder }, left: MAX_MSGS });
       } catch (e) { return send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
     }
     if (req.method === "POST" && url === "/api/say") {
@@ -272,7 +272,7 @@ http.createServer(async (req, res) => {
 async function reconcile() {
   for (const intent of Object.values(db.intents)) {
     try { const detail = await recoverIntent(intent, potView); if (!detail) continue;
-      db.pays[detail.payout_id] = { tx: intent.tx || null, run:intent.run, to:intent.to, net:NET, pot:POT };
+      db.pays[detail.payout_id] = { tx: intent.tx || null, run:intent.run, nick:db.runs[intent.run]?.nick || db.players[db.runs[intent.run]?.pid]?.nick || "Anonymous", to:intent.to, net:NET, pot:POT };
       db.pending_pays[detail.payout_id] = {run:intent.run,detail};
     } catch { /* Keep intent through RPC errors and deployment upgrades. */ }
   }
@@ -290,7 +290,7 @@ async function reconcile() {
         const player_ = player(run.pid), t = Gm.tactic(run.lures.at(-1) || "");
         feedUpsert(run, player_, t.name, "win");
         const entry = db.exploits.find(e => e.run === run.id || e.near_tx === detail.near_tx);
-        const win = { run: run.id, kind: "breach", day: Gm.today(), persona: "Crucible", mode: "l1", tactic: t.name, fix: t.fix, lure: run.lures.at(-1) || "", transcript: run.lures.slice(-3), result: `Paid ${toNear(p.amount)} NEAR (${NET}) to ${p.to} inside the contract limits.`, near_tx: detail.near_tx, network: NET, nick: player_.nick };
+        const win = { run: run.id, kind: "breach", day: Gm.today(), persona: "Crucible", mode: "l1", tactic: t.name, fix: t.fix, lure: run.lures.at(-1) || "", transcript: run.lures.slice(-3), result: `Paid ${toNear(p.amount)} NEAR (${NET}) to ${p.to} inside the contract limits.`, near_tx: detail.near_tx, network: NET, nick: run.nick || player_.nick };
         if (entry) Object.assign(entry, win); else db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), ...win });
         const attempt = completedAttempts.get(run.id) || { ts: new Date().toISOString(), run: run.id, nick: run.nick || player(run.pid).nick, attemptId: run.id, mode: "l1", msg: run.lures.at(-1) || "", transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history] };
         Object.assign(attempt, { outcome: "win", detail, result: run.result }); completedAttempts.set(run.id, attempt);

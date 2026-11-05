@@ -12,7 +12,7 @@ Crucible is a three-message jailbreak game, built at NEAR HACKATHON. The guard r
 
 ## Judge path · 60–90 seconds
 
-1. Open LIVE_URL. The intro appears on every visit. Press **Play** once.
+1. Open LIVE_URL. The intro appears on every visit. Press **Play**, enter an optional name on the name page, then press **Start**.
 2. The ledger is open. Press **Try the invoice con**. It fills a calm request quoting an approved invoice, vendor and changed payout account. Edit it if desired, then press **Send**.
 3. When Crucible approves, enter an existing **Recipient account (testnet)** ending in `.testnet`, then claim.
 4. Watch **AI approved → submitted → Paid**. The result polls settlement and links to the testnet explorer. A win counts only after the contract callback records Paid. Reloading resumes the run.

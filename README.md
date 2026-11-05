@@ -77,10 +77,18 @@ At startup and every ten seconds, the server queries `get_payment_by_ref` and se
 
 ![Intro](docs/intro.png)
 
+![Name page](docs/name.png)
+
 ![Game](docs/game.png)
 
 ![Invoice con filled in](docs/invoice-con.png)
 
-![Mobile](docs/mobile.png)
+![Paid](docs/paid.png)
+
+![Verification receipt](docs/receipt.png)
+
+![Share card](docs/share-card.png)
+
+![Lobby ticker and hall of fame](docs/lobby-ticker.png)
 
 Made for NEAR Hackathon by alamin.info

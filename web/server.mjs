@@ -24,7 +24,7 @@ for (const e of db.exploits) { e.fix = Gm.tactic(e.lure || "").fix; e.persona = 
 const completedAttempts = new Map();
 // Rebuild the live feed and completed results from the append-only attempt log.
 { const att = (() => { try { return fs.readFileSync(DIR + "attempts.jsonl", "utf8").trim().split("\n").map(l => JSON.parse(l)); } catch { return []; } })(), by = {};
-  for (const a of att) { if (a.attemptId && a.result && a.transcript) completedAttempts.set(a.attemptId, a); if (!a.run || a.mode === "overcap") continue; const r = db.runs[a.run], nick = r ? db.players[r.pid]?.nick : null; if (!nick) continue;
+  for (const a of att) { if (a.attemptId && a.result && a.transcript) completedAttempts.set(a.attemptId, a); if (!a.run || a.mode === "overcap") continue; const r = db.runs[a.run], nick = a.nick || r?.nick || (r ? db.players[r.pid]?.nick : null); if (!nick) continue;
     const e = by[a.run] ||= { run: a.run, nick, persona: r.persona.name, msgs: 0 }; Object.assign(e, { ts: Date.parse(a.ts), outcome: a.outcome, tactic: Gm.tactic(a.msg || "").name }); e.msgs = r.msgs; }
   db.feed = Object.values(by).sort((a, b) => b.ts - a.ts).slice(0, 50);
 }
@@ -95,7 +95,7 @@ async function payWin(run, to) {
     ...(status === "Failed" && { reason: "transfer failed; the contract released the limits and the NEAR stayed in the pot" }),
     ...(!paid && status !== "Failed" && { reason: "payout not settled yet; check the explorer link before retrying" }) };
 }
-async function newRun(pid, addrRaw, harder = false) {
+async function newRun(pid, addrRaw, harder = false, nick = player(pid).nick) {
   const P = Gm.persona(), pl = await policy();
   if (pl.paused || yocto(pl.available) < yocto(pl.per_win) || yocto(pl.day_left) < yocto(pl.per_win)) throw Object.assign(new Error(pl.paused ? "Pot paused." : yocto(pl.day_left) < yocto(pl.per_win) ? "Daily payout cap reached." : "Pot empty."), { code: 409 });
   if (yocto(pl.per_win) !== 500000000000000000000000n) throw Object.assign(new Error("Pot reward must be configured to 0.5 NEAR."), { code: 503 });
@@ -106,7 +106,7 @@ async function newRun(pid, addrRaw, harder = false) {
   }
   const mine = await playerAccount(addrRaw), id = crypto.randomBytes(9).toString("base64url");
   const seed = id + ":" + Gm.today();
-  db.runs[id] = { id, pid, persona: P, stash: mine, own_addr: !!mine, ledger: Gm.ledger(seed), code: Gm.code(seed), per_win: pl.per_win, checks: null, msgs: 0, score: 0, vault: 0, history: [], lures: [], won: null, started: Date.now() }; save();
+  db.runs[id] = { id, pid, nick, persona: P, stash: mine, own_addr: !!mine, ledger: Gm.ledger(seed), code: Gm.code(seed), per_win: pl.per_win, checks: null, msgs: 0, score: 0, vault: 0, history: [], lures: [], won: null, started: Date.now() }; save();
   return db.runs[id];
 }
 function finish(run, p) {
@@ -115,7 +115,7 @@ function finish(run, p) {
 
 function feedUpsert(run, p, tactic, outcome) {
   const f = db.feed.find(x => x.run === run.id);
-  if (f) Object.assign(f, { ts: Date.now(), tactic, outcome, msgs: run.msgs }); else db.feed.unshift({ run: run.id, ts: Date.now(), nick: p.nick, persona: run.persona.name, tactic, outcome, msgs: run.msgs });
+  if (f) Object.assign(f, { ts: Date.now(), tactic, outcome, msgs: run.msgs }); else db.feed.unshift({ run: run.id, ts: Date.now(), nick: run.nick || p.nick, persona: run.persona.name, tactic, outcome, msgs: run.msgs });
   db.feed.sort((a, b) => b.ts - a.ts); db.feed = db.feed.slice(0, 50);
 }
 async function play(run, msg, decision = null) {
@@ -167,7 +167,7 @@ async function play(run, msg, decision = null) {
   };
   if (end) run.result = result;
   feedUpsert(run, p, t.name, outcome);
-  const attempt = { ts: new Date().toISOString(), run: run.id, mode: P.key, msg: msg.slice(0, 300), d, checks: ck.passed, outcome, detail, provider, attested, model, chat_id, ms, ...(end ? { transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history], result, attemptId: run.id } : {}) };
+  const attempt = { ts: new Date().toISOString(), run: run.id, nick: run.nick || p.nick, mode: P.key, msg: msg.slice(0, 300), d, checks: ck.passed, outcome, detail, provider, attested, model, chat_id, ms, ...(end ? { transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history], result, attemptId: run.id } : {}) };
   fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify(attempt) + "\n");
   if (end) completedAttempts.set(run.id, attempt);
   save();
@@ -225,10 +225,10 @@ http.createServer(async (req, res) => {
       const run = db.runs[u.searchParams.get("run")];
       if (!run || run.pid !== u.searchParams.get("pid")) return send(res, 404, {error:"Run not found"});
       let lastDecision = {}; try { lastDecision = JSON.parse(run.history.filter(m => m.role === "assistant").at(-1)?.content || "{}"); } catch {}
-      return send(res, 200, { run:run.id, persona:run.persona, ledger:run.ledger, history:run.history, pending:!!run.pending, done:!!run.done, result:run.result, attemptId:run.id, score:run.score, suspicion:run.suspicion ?? lastDecision.suspicion ?? 10, mood:run.mood || lastDecision.mood || "calm", left:Math.max(0, MAX_MSGS-run.msgs), checks:digits(run), settlement:run.won?.status || (db.intents[run.id] ? "submitting" : null) });
+      return send(res, 200, { run:run.id, nick:run.nick || player(run.pid).nick, persona:run.persona, ledger:run.ledger, history:run.history, pending:!!run.pending, done:!!run.done, result:run.result, attemptId:run.id, score:run.score, suspicion:run.suspicion ?? lastDecision.suspicion ?? 10, mood:run.mood || lastDecision.mood || "calm", left:Math.max(0, MAX_MSGS-run.msgs), checks:digits(run), settlement:run.won?.status || (db.intents[run.id] ? "submitting" : null) });
     }
     if (url === "/api/lobby") { const pl = await policy();
-      return send(res, 200, { pot: pl, jackpot: Number(pl.available) / 1e24, feed: db.feed.slice(0, 48), payments: (await proof()).payments.filter(p => p.status === "Paid"), fame: [...completedAttempts.values()].filter(a => a.outcome === "win").sort((a,b) => a.transcript.filter(m=>m.role==="user").reduce((n,m)=>n+m.content.length,0)-b.transcript.filter(m=>m.role==="user").reduce((n,m)=>n+m.content.length,0)).slice(0,5).map(a=>({run:a.run,prompt:a.transcript.filter(m=>m.role==="user").at(-1)?.content || a.msg,tx:a.detail?.near_tx})), max_msgs: MAX_MSGS }); }
+      return send(res, 200, { pot: pl, jackpot: Number(pl.available) / 1e24, feed: db.feed.slice(0, 48), payments: (await proof()).payments.filter(p => p.status === "Paid").map(p => ({...p,nick:db.runs[db.pays[p.id]?.run]?.nick || db.players[db.runs[db.pays[p.id]?.run]?.pid]?.nick || "Anonymous"})), fame: [...completedAttempts.values()].filter(a => a.outcome === "win").sort((a,b) => a.transcript.filter(m=>m.role==="user").reduce((n,m)=>n+m.content.length,0)-b.transcript.filter(m=>m.role==="user").reduce((n,m)=>n+m.content.length,0)).slice(0,5).map(a=>({run:a.run,nick:a.nick || db.runs[a.run]?.nick || db.players[db.runs[a.run]?.pid]?.nick || "Anonymous",prompt:a.transcript.filter(m=>m.role==="user").at(-1)?.content || a.msg,tx:a.detail?.near_tx})), max_msgs: MAX_MSGS }); }
     if (url === "/api/policy") return send(res, 200, await policy());
     if (url === "/api/exploits") return send(res, 200, { today: Gm.today(), exploits: db.exploits.slice(0, 60) });
     if (url === "/api/exploits.md") return send(res, 200, libraryMd(), "text/markdown; charset=utf-8");
@@ -236,8 +236,8 @@ http.createServer(async (req, res) => {
     if (req.method === "POST" && url === "/api/run") {
       const b = await body(req); if (!pidOk(b.pid)) return send(res, 400, { error: "Reload the page to get a player id." });
       const nick = String(b.nick || "").replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 18) || "Anonymous"; player(b.pid, nick);
-      try { const run = await newRun(b.pid, b.addr, b.harder === true);
-        return send(res, 200, { run: run.id, ledger: run.ledger, checks: digits(run), own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, open: run.persona.open, key: run.persona.key }, left: MAX_MSGS });
+      try { const run = await newRun(b.pid, b.addr, b.harder === true, nick);
+        return send(res, 200, { run: run.id, nick: run.nick, ledger: run.ledger, checks: digits(run), own_addr: run.own_addr, persona: { name: run.persona.name, title: run.persona.title, open: run.persona.open, key: run.persona.key }, left: MAX_MSGS });
       } catch (e) { return send(res, e.code || 500, { error: e.code ? e.message : errMsg(e) }); }
     }
     if (req.method === "POST" && url === "/api/say") {
@@ -292,7 +292,7 @@ async function reconcile() {
         const entry = db.exploits.find(e => e.run === run.id || e.near_tx === detail.near_tx);
         const win = { run: run.id, kind: "breach", day: Gm.today(), persona: "Crucible", mode: "l1", tactic: t.name, fix: t.fix, lure: run.lures.at(-1) || "", transcript: run.lures.slice(-3), result: `Paid ${toNear(p.amount)} NEAR (${NET}) to ${p.to} inside the contract limits.`, near_tx: detail.near_tx, network: NET, nick: player_.nick };
         if (entry) Object.assign(entry, win); else db.exploits.unshift({ id: "CX-" + String(db.exploits.length + 1).padStart(3, "0"), ...win });
-        const attempt = completedAttempts.get(run.id) || { ts: new Date().toISOString(), run: run.id, attemptId: run.id, mode: "l1", msg: run.lures.at(-1) || "", transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history] };
+        const attempt = completedAttempts.get(run.id) || { ts: new Date().toISOString(), run: run.id, nick: run.nick || player(run.pid).nick, attemptId: run.id, mode: "l1", msg: run.lures.at(-1) || "", transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history] };
         Object.assign(attempt, { outcome: "win", detail, result: run.result }); completedAttempts.set(run.id, attempt);
         fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify(attempt) + "\n");
       }
@@ -304,7 +304,7 @@ async function reconcile() {
         run.result.near_tx = detail.near_tx; if (run.result.verification) run.result.verification.chain_tx = detail.near_tx;
         Object.assign(run.result, { contract: "The contract allowed the payment", policy_check: "All contract spending checks passed", payment: "not paid (transfer failed)" });
         feedUpsert(run, player(run.pid), Gm.tactic(run.lures.at(-1) || "").name, "broadcast-failed");
-        const attempt = completedAttempts.get(run.id) || { ts: new Date().toISOString(), run: run.id, attemptId: run.id, mode: "l1", msg: run.lures.at(-1) || "", transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history] };
+        const attempt = completedAttempts.get(run.id) || { ts: new Date().toISOString(), run: run.id, nick: run.nick || player(run.pid).nick, attemptId: run.id, mode: "l1", msg: run.lures.at(-1) || "", transcript: [{ role: "assistant", content: JSON.stringify({ say: run.persona.open }) }, ...run.history] };
         Object.assign(attempt, { outcome: "broadcast-failed", detail, result: run.result });
         completedAttempts.set(run.id, attempt);
         fs.appendFileSync(DIR + "attempts.jsonl", JSON.stringify(attempt) + "\n");

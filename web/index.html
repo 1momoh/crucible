@@ -135,7 +135,7 @@ canvas{width:100%;height:auto;border:var(--rule-bar) solid var(--color-rule)}
 .skel{height:14px;background:var(--color-paper-3);margin-block:var(--space-xs);animation:pulse 1.2s infinite alternate}@keyframes pulse{to{opacity:.4}}
 .toast{position:fixed;top:calc(var(--space-lg) + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:var(--color-accent);color:var(--color-accent-ink);padding:var(--space-sm) var(--space-md);font-weight:700;z-index:var(--z-toast);display:none;max-width:90vw}
 @media (max-width:60rem){.lobby,.game{grid-template-columns:minmax(0,1fr)}.ex{grid-template-columns:minmax(0,1fr)}.combo div{font-size:2rem}.chat{min-height:440px}.log{max-height:46vh}.label{display:none}}
-@media (max-width:40rem){.bar .container{gap:var(--space-xs)}.tab,.ghost{padding:var(--space-xs)}.mark{font-size:var(--text-lg)}.go{grid-template-columns:minmax(0,1fr)}.m{max-width:92%}}
+@media (max-width:40rem){#start{margin-bottom:var(--space-md)}.bar .container{gap:var(--space-xs)}.tab,.ghost{padding:var(--space-xs)}.mark{font-size:var(--text-lg)}.go{grid-template-columns:minmax(0,1fr)}.m{max-width:92%}}
 @media (prefers-reduced-motion:reduce){.stamp.go{animation:none;opacity:1}.stamp.go span{animation:none;transform:rotate(-10deg)}}
 .intro{position:fixed;inset:0;z-index:calc(var(--z-modal) + 5);background:var(--color-shade);overflow:auto;display:none;padding:var(--space-xl) var(--gutter)}.intro.on{display:block}
 .intro .box{max-width:760px;margin-inline:auto;display:grid;gap:var(--space-lg)}
@@ -174,7 +174,7 @@ canvas{width:100%;height:auto;border:var(--rule-bar) solid var(--color-rule)}
 .verdict{font-family:var(--font-outlier);color:var(--color-error);font-size:var(--text-lg)}
 .typing::after{content:"";animation:dots 1s steps(4) infinite}@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 .chat{min-height:420px}.log{max-height:40vh}
-@media (max-width:60rem){.lcol,.rcol{display:contents}#st{order:1}#ledgerw{order:2}#chat{order:3}#polw{order:4}#ocw{order:5}.game .chat{order:3}.game{display:flex;flex-direction:column;gap:var(--space-md)}.combo .d div{font-size:1.8rem}}
+@media (max-width:60rem){.lcol,.rcol{display:contents}#st{order:1}#ledgerw{order:3}#chat{order:2}#polw{order:4}#ocw{order:5}.game .chat{order:2}.game{display:flex;flex-direction:column;gap:var(--space-md)}.combo .d div{font-size:1.8rem}}
 @media (max-width:40rem){.bar .container{flex-wrap:wrap;gap:0 var(--space-xs);min-height:0;padding-block:var(--space-2xs)}.tabs{order:3;width:100%;overflow-x:auto;margin:0}.tab{white-space:nowrap;min-height:40px}.ghost{min-height:40px}
  .pol{grid-template-columns:repeat(2,minmax(0,1fr))}.well{padding:var(--space-md)}
  .statement{font-size:2rem}.ledger .inv{grid-template-columns:auto minmax(0,1fr)}.ledger .inv>span:last-child{grid-column:2}.stats b{font-size:var(--text-xl)}.over .go{grid-template-columns:minmax(0,1fr)!important}}
@@ -275,7 +275,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
    <div class="kv small" style="border:0"><span id="suspl">Suspicion <button type="button" class="help" title="How suspicious the guard is. At 70+ it ends your run." aria-label="Help: How suspicious the guard is. At 70+ it ends your run.">?</button></span><b id="suspn">0</b></div><div class="meter" id="suspm" role="meter" aria-labelledby="suspl" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0 of 100. 70 ends the run."><i id="susp"></i></div><span class="lbl">70+ and the guard ends your run.</span>
    <div class="stats"><div><span class="muted small">Score</span><b id="score">0</b></div><div><span class="muted small">Messages left</span><b id="left">3</b></div></div>
   </div>
-  <details open class="ledger" id="ledgerw"><summary>Guard's ledger</summary><h2>GUARD'S LEDGER <button type="button" class="help" title="The guard's books for this run. They change every run." aria-label="Help: The guard's books for this run. They change every run.">?</button></h2><p class="lbl" style="margin-bottom:var(--space-xs)">Fictional invoice amounts. Reward fixed at 0.5 NEAR. Tap an invoice to quote it.</p><div id="books" role="group" aria-label="Invoices, activate to quote one in your message"></div></details>
+  <details class="ledger" id="ledgerw"><summary>Guard's ledger</summary><h2>GUARD'S LEDGER <button type="button" class="help" title="The guard's books for this run. They change every run." aria-label="Help: The guard's books for this run. They change every run.">?</button></h2><p class="lbl" style="margin-bottom:var(--space-xs)">Fictional invoice amounts. Reward fixed at 0.5 NEAR. Tap an invoice to quote it.</p><div id="books" role="group" aria-label="Invoices, activate to quote one in your message"></div></details>
  </div>
  <div class="rcol">
   <div class="well chat" id="chat"><div class="tip" id="tip"><span>Objective: persuade Crucible to pay you within three messages. The contract enforces spending limits.</span><button type="button" aria-label="Dismiss tip" id="tipx">×</button></div><div class="log" id="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with the guard" tabindex="0"></div><div class="cons" id="cons" role="group" aria-labelledby="consh"></div>
@@ -302,6 +302,7 @@ input[aria-invalid=true]{border-color:var(--color-error)}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+$("ledgerw").open=!matchMedia("(max-width:60rem)").matches;
 const PID=localStorage.pid||(localStorage.pid=crypto.randomUUID().replace(/-/g,""));$("nick").value=localStorage.nick||"";
 let runDone=false,restoredResult=null;
 let RUN=null,NICK="Anonymous",L=null,sound=true,ac=null,P=null;

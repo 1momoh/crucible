@@ -268,8 +268,8 @@ input[aria-invalid=true]{border-color:var(--color-error)}
  <div class="lcol">
   <div class="well" id="st">
    <div class="who"><b id="pname"></b><span class="muted small" id="ptitle"></span></div>
-   <p class="small aibadge" id="aib"> Runs on <b>NEAR AI Cloud</b> &middot; DeepSeek-V4.1-Flash &middot; verification not performed; no confidential inference claim &middot; <a href="https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017&amp;signing_algo=ecdsa" target="_blank" rel="noopener">attestation</a></p>
-   <p class="small" style="margin-top:var(--space-xs)"><span class="mood" id="mood">calm</span></p>
+   <p class="small aibadge" id="aib"> Runs on <b>NEAR AI Cloud</b> &middot; DeepSeek V4.1 Flash &middot; TEE attestation not verified by this app &middot; <a href="https://cloud-api.near.ai/v1/attestation/report?model=deepseek-ai%2FDeepSeek-V4.1-Flash-1017&amp;signing_algo=ecdsa" target="_blank" rel="noopener">view attestation</a></p>
+   <p class="small" style="margin-top:var(--space-xs)"><span class="mood" id="mood">Mood: calm</span></p>
    <p class="small" style="margin-top:var(--space-md);font-weight:700">Vault lock <button type="button" class="help" title="Five real checks the guard runs on your story. Each one you pass locks a digit. These checks describe your story; Crucible makes its own decision." aria-label="Help: Five real checks the guard runs on your story. Each one you pass locks a digit. These checks describe your story; Crucible makes its own decision.">?</button></p>
    <div class="combo" id="combo" role="img" aria-label="Vault lock" style="margin-block:var(--space-2xs) var(--space-xs)"></div><span class="lbl" id="ckhint" aria-live="polite" style="margin-bottom:var(--space-md)">Each digit is one guard check. Hover a digit to see it.</span>
    <div class="kv small" style="border:0"><span id="suspl">Suspicion <button type="button" class="help" title="How suspicious the guard is. At 70+ it ends your run." aria-label="Help: How suspicious the guard is. At 70+ it ends your run.">?</button></span><b id="suspn">0</b></div><div class="meter" id="suspm" role="meter" aria-labelledby="suspl" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0 of 100. 70 ends the run."><i id="susp"></i></div><span class="lbl">70+ and the guard ends your run.</span>
@@ -351,7 +351,7 @@ $("start").onsubmit=async e=>{e.preventDefault();localStorage.nick=$("nick").val
   books();add("note",`${esc(P.name)} is guarding the vault. You have ${r.left} messages. If Crucible agrees to pay you, we will ask for your NEAR account then.`);add("them",esc(P.open));
   $("lobby").hidden=true;$("game").hidden=false;$("msg").focus()}catch(x){toast(x.message);$("gobtn").disabled=false;$("gobtn").textContent="Start"}};let BOOKS=[];
 function meter(s){$("susp").style.transform=`scaleX(${s/100})`;$("suspn").textContent=s;const m=$("suspm");m.setAttribute("aria-valuenow",s);m.setAttribute("aria-valuetext",`${s} of 100${s>=70?", run ended":s>=50?", getting close to 70":""}`)}
-function mood(m){$("mood").textContent=m;$("mood").classList.toggle("hot",m=="alarmed"||m=="wary")}
+function mood(m){$("mood").textContent="Mood: "+m;$("mood").classList.toggle("hot",m=="alarmed"||m=="wary")}
 let payoutPending=false,payoutAction=null;
 $("payaddr").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();if(!$("resume").disabled)$("resume").click()}});
 $("resume").onclick=()=>{payoutAction="resume";$("say").requestSubmit()};
